@@ -311,6 +311,29 @@ struct evdev
 		}
 		return (int)keys.size();
 	}
+	bool emit_event(input_event &event)
+	{
+		int fd = libevdev_get_fd(dev);
+
+		if (fd >= 0) return write(fd, &event, sizeof(event)) >= 0;
+		return false;
+	}
+	bool emit_event(int ev_type, int ev_code, int ev_value)
+	{
+		int fd = libevdev_get_fd(dev);
+
+		if (fd >= 0)
+		{
+			input_event event = { 0, };
+
+			gettimeofday(&event.time, 0);
+        	event.type = ev_type;
+        	event.code = ev_code;
+        	event.value = ev_value;
+			return write(fd, &event, sizeof(event)) >= 0;
+		} 
+		return false;
+	}
 };
 
 static evdev* grabDevice(std::string name, std::string phys, bool hidden = false, bool rdwr = false)
@@ -488,6 +511,7 @@ out:
 }
 */
 
+// https://github.com/ev3dev/python-evdev/blob/ev3dev-stretch/evdev/device.py
 // https://github.com/tuomasjjrasanen/python-uinput/blob/master/libsuinput/src/suinput.c
 struct uinput
 {
@@ -496,7 +520,7 @@ struct uinput
 	uinput()
 	{
 //		char *pinput = suinput_get_uinput_path();
-		fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+		fd = open("/dev/uinput", O_RDWR | O_NONBLOCK);
 	}
 	~uinput()
 	{
@@ -1836,13 +1860,9 @@ static void capture_ff_events()
 
 			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 			{
-				if (event.type == EV_FF)
+				if (event.type == EV_FF) 
 				{
-					if (g_controller_device)
-					{
-						int fd2 = libevdev_get_fd(g_controller_device->dev);
-						int err = write(fd2, &event, sizeof(event));
-					}
+					if (g_controller_device) g_controller_device->emit_event(event.type, event.code, event.value);
 				}
 				else if (event.type == EV_UINPUT)
 				{
