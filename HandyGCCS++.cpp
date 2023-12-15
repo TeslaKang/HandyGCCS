@@ -794,15 +794,15 @@ static void handle_power_action(const char *pAction)
 	else fprintf(g_logStream, "Power Action: none \n");
 	if (pAction == POWER_ACTION_SUSPEND)
 	{
-//		if (!steam_ifrunning_deckui("steam://shortpowerpress")) system("systemctl suspend");
+		if (!steam_ifrunning_deckui("steam://shortpowerpress")) system("systemctl suspend");
 	}
 	else if (pAction == POWER_ACTION_HIBERNATE)
 	{
-//		system("systemctl hibernate");
+		system("systemctl hibernate");
 	}
 	else if (pAction == POWER_ACTION_SHUTDOWN)
 	{
-//		if (!steam_ifrunning_deckui("steam://longpowerpress")) system("systemctl poweroff");
+		if (!steam_ifrunning_deckui("steam://longpowerpress")) system("systemctl poweroff");
 	}
 }
 
@@ -1380,6 +1380,24 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		// BUTTON 2 (Default: QAM)
 		assignButtonKey(2, { 99 });
 	}
+	else if (model == "G1617-01") // WinMini
+	{
+		g_system_type = GPD_GEN4;
+    	BUTTON_DELAY = 0.11;
+    	CAPTURE_CONTROLLER = true;
+    	CAPTURE_KEYBOARD = true;
+    	CAPTURE_POWER = true;
+    	GAMEPAD_ADDRESS = "usb-0000:63:00.3-5/input0";
+    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+    	KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
+    	KEYBOARD_NAME = "  Mouse for Windows";
+
+		// BUTTON 1 (Default: Toggle Gyro)
+		assignButtonKey(1, { 119 });
+
+		// BUTTON 2 (Default: QAM)
+		assignButtonKey(2, { 32, 125 });
+	}
     // ONEXPLAYER Devices
     // Older BIOS have incomlete DMI data and most models report as "ONE XPLAYER" or "ONEXPLAYER".
 	else if (model == "ONE XPLAYER" || model == "ONEXPLAYER")
@@ -1941,7 +1959,7 @@ static void capture_power_events()
 			if (power_device_2)
 			{
 				input_event event = { 0, };
-				int rc = readEvent(&power_device, &event, "Error power_device_2. Restarting.\n");
+				int rc = readEvent(&power_device_2, &event, "Error power_device_2. Restarting.\n");
 
 				if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 				{
