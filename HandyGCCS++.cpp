@@ -1392,6 +1392,8 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
     	KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
     	KEYBOARD_NAME = "  Mouse for Windows";
 
+		LID_SWITCH = "PNP0C0D/button/input0";
+
 		// BUTTON 1 (Default: Toggle Gyro)
 		assignButtonKey(1, { 119 });
 
@@ -1720,7 +1722,7 @@ static void handle_key_down(int event)
 	auto it = g_button_map.find(event);
 	if (it != g_button_map.end())
 	{
-		if (it->second == EVENT_QAM && g_controller_device) do_rumble(g_controller_device->dev, 0, 300, 300, 0);
+		if (it->second == EVENT_QAM && g_controller_device) do_rumble(g_controller_device->dev, 0, 150, 1000, 0);
 
 		if (std::find(INSTANT_EVENTS.begin(), INSTANT_EVENTS.end(), it->second) != INSTANT_EVENTS.end())
 		{
