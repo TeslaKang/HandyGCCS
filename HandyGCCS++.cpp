@@ -156,7 +156,7 @@ static bool steam_ifrunning_deckui(std::string cmd)
 			if (strstr(str2, "-gamepadui"))
 			{
 				std::string steam_path = HOME_PATH + "/.steam/root/ubuntu12_32/steam";
-				std::string run = "su " + USER + " -c " + steam_path + " -ifrunning " + cmd;
+				std::string run = "su " + USER + " -c '" + steam_path + " -ifrunning " + cmd + "'";
 
 				return system(run.c_str()) >= 0;
 			} 
