@@ -1860,9 +1860,9 @@ static void capture_ff_events()
 			input_event event = { 0, };
 			int rc = g_ui_device->Read(&event);
 
-			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
+			if (rc == sizeof(event))
 			{
-				if (event.type == EV_FF) 
+				if (event.type == EV_FF)
 				{
 					if (g_controller_device) g_controller_device->emit_event(event.type, event.code, event.value);
 				}
@@ -1874,16 +1874,17 @@ static void capture_ff_events()
 					{
 						uinput_ff_upload upload = { 0, };
 
-						upload.effect_id = event.value;
+						upload.request_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_UPLOAD, &upload);
+						auto effect = upload.effect;
 					
-						if (ff_effect_id_set.find(upload.effeci.id) == ff_effect_id_set.end()) upload.effeci.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
+						if (ff_effect_id_set.find(effect.id) == ff_effect_id_set.end()) effect.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
 						if (g_controller_device)
 						{
 							int fd2 = libevdev_get_fd(g_controller_device->dev);
 
-							err = ioctl(fd2, EVIOCSFF, &upload.effect);
-							ff_effect_id_set[upload.effect] = true;
+							err = ioctl(fd2, EVIOCSFF, &effect);
+							ff_effect_id_set[effect.id] = true;
 							upload.retval = 0;
 						}
 
@@ -1893,7 +1894,7 @@ static void capture_ff_events()
 					{
 						uinput_ff_erase erase = { 0, };
 
-						erase.effect_id = event.value;
+						erase.request_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_ERASE, &erase);
 
 						if (g_controller_device)
@@ -1904,6 +1905,7 @@ static void capture_ff_events()
 							erase.retval = 0;
 
 							auto it = ff_effect_id_set.find(erase.effect_id);
+							if (it != ff_effect_id_set.end()) ff_effect_id_set.erase(it);
 						}
 
 						err = ioctl(fd, UI_END_FF_ERASE, &erase);
