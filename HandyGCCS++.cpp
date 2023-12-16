@@ -262,6 +262,27 @@ static int test_bit(const char* bitmask, int bit)
     return bitmask[bit / 8] & (1 << (bit % 8));
 }
 
+static bool emit_event(int fd, input_event &event)
+{
+	if (fd >= 0) return write(fd, &event, sizeof(event)) >= 0;
+	return false;
+}
+
+static bool emit_event(int fd, int ev_type, int ev_code, int ev_value)
+{
+	if (fd >= 0)
+	{
+		input_event event = { 0, };
+
+		gettimeofday(&event.time, 0);
+		event.type = ev_type;
+		event.code = ev_code;
+		event.value = ev_value;
+		return write(fd, &event, sizeof(event)) >= 0;
+	} 
+	return false;
+}
+
 struct evdev
 {
 	libevdev* dev;
@@ -316,26 +337,11 @@ struct evdev
 	}
 	bool emit_event(input_event &event)
 	{
-		int fd = libevdev_get_fd(dev);
-
-		if (fd >= 0) return write(fd, &event, sizeof(event)) >= 0;
-		return false;
+		return ::emit_event(libevdev_get_fd(dev), event);
 	}
 	bool emit_event(int ev_type, int ev_code, int ev_value)
 	{
-		int fd = libevdev_get_fd(dev);
-
-		if (fd >= 0)
-		{
-			input_event event = { 0, };
-
-			gettimeofday(&event.time, 0);
-        	event.type = ev_type;
-        	event.code = ev_code;
-        	event.value = ev_value;
-			return write(fd, &event, sizeof(event)) >= 0;
-		} 
-		return false;
+		return ::emit_event(libevdev_get_fd(dev), ev_type, ev_code, ev_value);
 	}
 };
 
@@ -391,10 +397,8 @@ static void resyncDevice(libevdev *dev)
     } while (rc == LIBEVDEV_READ_STATUS_SYNC);
 }
 
-static void do_rumble(libevdev* dev, int button = 0, int interval = 10, int length = 1000, int delay = 0)
+static void do_rumble(int fd, int button = 0, int interval = 10, int length = 1000, int delay = 0)
 {
-	int fd = libevdev_get_fd(dev);
-
 	ff_effect effect = { 0, };
 	effect.type = FF_RUMBLE;
 	effect.id = -1;
@@ -624,22 +628,11 @@ struct uinput
 	}
 	bool emit_event(input_event &event)
 	{
-		if (fd >= 0) return write(fd, &event, sizeof(event)) >= 0;
-		return false;
+		return ::emit_event(fd, event);
 	}
 	bool emit_event(int ev_type, int ev_code, int ev_value)
 	{
-		if (fd >= 0)
-		{
-			input_event event = { 0, };
-
-			gettimeofday(&event.time, 0);
-        	event.type = ev_type;
-        	event.code = ev_code;
-        	event.value = ev_value;
-			return write(fd, &event, sizeof(event)) >= 0;
-		} 
-		return false;
+		return ::emit_event(fd, ev_type, ev_code, ev_value);
 	}
 };
 
@@ -1645,7 +1638,7 @@ static int getMatchButton(std::vector<int> &keys)
 }
 
 static int FF_DELAY = 200;
-static evdev* g_controller_device = NULL;
+static int g_controller_fd = -1;
 static std::string g_performance_mode = "--power-saving";
 static std::string g_thermal_mode = "0";
 
@@ -1654,18 +1647,18 @@ static void toggle_performance()
     if (g_performance_mode == "--max-performance")
 	{
         g_performance_mode = "--power-saving";
-		if (g_controller_device) do_rumble(g_controller_device->dev, 0, 100, 1000, 0);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
         sleepMS(FF_DELAY);
-        if (g_controller_device) do_rumble(g_controller_device->dev, 0, 100, 1000, 0);
+        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
 	}
     else
 	{
         g_performance_mode = "--max-performance";
-        if (g_controller_device) do_rumble(g_controller_device->dev, 0, 500, 1000, 0);
+        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
         sleepMS(FF_DELAY);
-        if (g_controller_device) do_rumble(g_controller_device->dev, 0, 75, 1000, 0);
+        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
         sleepMS(FF_DELAY);
-        if (g_controller_device) do_rumble(g_controller_device->dev, 0, 75, 1000, 0);
+        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
 	}
 
     std::string ryzenadj_command = "ryzenadj " + g_performance_mode;
@@ -1749,7 +1742,7 @@ static void handle_key_down(int event)
 	auto it = g_button_map.find(event);
 	if (it != g_button_map.end())
 	{
-		if (it->second == EVENT_QAM && g_controller_device) do_rumble(g_controller_device->dev, 0, 150, 1000, 0);
+		if (it->second == EVENT_QAM && g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 150, 1000, 0);
 
 		if (std::find(INSTANT_EVENTS.begin(), INSTANT_EVENTS.end(), it->second) != INSTANT_EVENTS.end())
 		{
@@ -1829,12 +1822,14 @@ static int readEvent(evdev **ppDev, input_event *pEvent, const char *log)
 
 static void capture_controller_events()
 {
+	evdev* controller_device = NULL;
+
 	while (g_runningLoop == 1)
 	{
-		if (g_controller_device)
+		if (controller_device)
 		{
 			input_event event = { 0, };
-			int rc = readEvent(&g_controller_device, &event, "Error capture_controller_events devices. Restarting.\n");
+			int rc = readEvent(&controller_device, &event, "Error capture_controller_events devices. Restarting.\n");
 
 			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 			{
@@ -1849,16 +1844,21 @@ static void capture_controller_events()
 		else
 		{
 			fprintf(g_logStream, "Attempting to grab controller device...%s %s\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());
-			if (!GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty()) g_controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
-			if (!g_controller_device) sleepMS(DETECT_DELAY);
+			if (!GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
+			{
+				controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
+				g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
+			} 
+			if (!controller_device) sleepMS(DETECT_DELAY);
 		}
 	}
-	SAFE_DELETE(g_controller_device);
+	SAFE_DELETE(controller_device);
 }
 
 static void capture_ff_events()
 {
 	std::map<int, bool> ff_effect_id_set;
+	int controller_fd = g_controller_fd;
 
 	while (g_runningLoop == 1)
 	{
@@ -1869,9 +1869,14 @@ static void capture_ff_events()
 
 			if (rc == sizeof(event))
 			{
+				if (controller_fd != g_controller_fd)
+				{
+					controller_fd = g_controller_fd;
+					ff_effect_id_set.clear();
+				}
 				if (event.type == EV_FF)
 				{
-					if (g_controller_device) g_controller_device->emit_event(event.type, event.code, event.value);
+					emit_event(controller_fd, event.type, event.code, event.value);
 				}
 				else if (event.type == EV_UINPUT)
 				{
@@ -1886,14 +1891,9 @@ static void capture_ff_events()
 						auto effect = upload.effect;
 					
 						if (ff_effect_id_set.find(effect.id) == ff_effect_id_set.end()) effect.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
-						if (g_controller_device)
-						{
-							int fd2 = libevdev_get_fd(g_controller_device->dev);
-
-							err = ioctl(fd2, EVIOCSFF, &effect);
-							ff_effect_id_set[effect.id] = true;
-							upload.retval = 0;
-						}
+						if (controller_fd >= 0) err = ioctl(controller_fd, EVIOCSFF, &effect);
+						ff_effect_id_set[effect.id] = true;
+						upload.retval = 0;
 
 						err = ioctl(fd, UI_END_FF_UPLOAD, &upload);
 					}
@@ -1904,16 +1904,11 @@ static void capture_ff_events()
 						erase.request_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_ERASE, &erase);
 
-						if (g_controller_device)
-						{
-							int fd2 = libevdev_get_fd(g_controller_device->dev);
+						if (controller_fd >= 0) err = ioctl(controller_fd, EVIOCRMFF, erase.effect_id);
+						erase.retval = 0;
 
-							err = ioctl(fd2, EVIOCRMFF, erase.effect_id);
-							erase.retval = 0;
-
-							auto it = ff_effect_id_set.find(erase.effect_id);
-							if (it != ff_effect_id_set.end()) ff_effect_id_set.erase(it);
-						}
+						auto it = ff_effect_id_set.find(erase.effect_id);
+						if (it != ff_effect_id_set.end()) ff_effect_id_set.erase(it);
 
 						err = ioctl(fd, UI_END_FF_ERASE, &erase);
 					}
@@ -2032,7 +2027,7 @@ static void capture_power_events()
 
 int main(int argc, char* argv[])
 {
-    g_logStream = stdout;
+    g_logStream = stderr;
 
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
