@@ -280,6 +280,9 @@ struct evdev
 		if (!org_path.empty() && !new_path.empty()) rename(new_path.c_str(), org_path.c_str());
 		if (dev)
 		{
+			int fd = libevdev_get_fd(dev);
+
+			if (fd >= 0) close(fd);
 			libevdev_grab(dev, LIBEVDEV_UNGRAB);
 			libevdev_free(dev);
 		} 
@@ -1817,7 +1820,7 @@ static int readEvent(evdev **ppDev, input_event *pEvent, const char *log)
 		{
 			fprintf(g_logStream, log);
 			sleepMS(DETECT_DELAY);
-			SAFE_DELETE(ppDev);
+			SAFE_DELETE(*ppDev);
 		}
 		return rc;
 	}
