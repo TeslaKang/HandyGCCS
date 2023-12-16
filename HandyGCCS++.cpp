@@ -1851,6 +1851,8 @@ static void capture_controller_events()
 
 static void capture_ff_events()
 {
+	std::map<int, bool> ff_effect_id_set;
+
 	while (g_runningLoop == 1)
 	{
 		if (g_ui_device)
@@ -1872,14 +1874,17 @@ static void capture_ff_events()
 					{
 						uinput_ff_upload upload = { 0, };
 
-						upload.request_id = event.value;
+						upload.effect_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_UPLOAD, &upload);
-
+					
+						if (ff_effect_id_set.find(upload.effeci.id) == ff_effect_id_set.end()) upload.effeci.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
 						if (g_controller_device)
 						{
 							int fd2 = libevdev_get_fd(g_controller_device->dev);
 
 							err = ioctl(fd2, EVIOCSFF, &upload.effect);
+							ff_effect_id_set[upload.effect] = true;
+							upload.retval = 0;
 						}
 
 						err = ioctl(fd, UI_END_FF_UPLOAD, &upload);
@@ -1888,7 +1893,7 @@ static void capture_ff_events()
 					{
 						uinput_ff_erase erase = { 0, };
 
-						erase.request_id = event.value;
+						erase.effect_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_ERASE, &erase);
 
 						if (g_controller_device)
@@ -1896,6 +1901,9 @@ static void capture_ff_events()
 							int fd2 = libevdev_get_fd(g_controller_device->dev);
 
 							err = ioctl(fd2, EVIOCRMFF, erase.effect_id);
+							erase.retval = 0;
+
+							auto it = ff_effect_id_set.find(erase.effect_id);
 						}
 
 						err = ioctl(fd, UI_END_FF_ERASE, &erase);
