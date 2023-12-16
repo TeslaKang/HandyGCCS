@@ -1839,7 +1839,11 @@ static void capture_controller_events()
 			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 			{
 				if (event.type == EV_FF || event.type == EV_UINPUT) continue;
-				if (g_ui_device) g_ui_device->emit_event(event);
+				if (g_ui_device)
+				{
+					g_ui_device->emit_event(event);
+					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+				} 
 			}
 		}
 		else
