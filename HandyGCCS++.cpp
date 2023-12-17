@@ -808,8 +808,9 @@ static void assignButtonKey(int idx, std::initializer_list<int> keys, int other 
 	else fprintf(g_logStream, "out of button range: %d \n", idx);
 }
 
-static void handle_power_action(const char *pAction)
+static void handle_power_action_thread(const char *pAction)
 {
+	sleep(1);
 	if (pAction) fprintf(g_logStream, "Power Action: %s \n", pAction);
 	else fprintf(g_logStream, "Power Action: none \n");
 	if (pAction == POWER_ACTION_SUSPEND)
@@ -824,6 +825,13 @@ static void handle_power_action(const char *pAction)
 	{
 		if (!steam_ifrunning_deckui("steam://longpowerpress")) system("systemctl poweroff");
 	}
+}
+
+static void handle_power_action(const char *pAction)
+{
+	std::thread th(handle_power_action_thread, pAction);
+
+	th.detach();
 }
 
 static const char *CONFIG_DIR = "/etc/handygccs/";
