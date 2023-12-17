@@ -808,9 +808,8 @@ static void assignButtonKey(int idx, std::initializer_list<int> keys, int other 
 	else fprintf(g_logStream, "out of button range: %d \n", idx);
 }
 
-static void handle_power_action_thread(const char *pAction)
+static void do_handle_power_action(const char *pAction)
 {
-	sleep(1);
 	if (pAction) fprintf(g_logStream, "Power Action: %s \n", pAction);
 	else fprintf(g_logStream, "Power Action: none \n");
 	if (pAction == POWER_ACTION_SUSPEND)
@@ -827,11 +826,12 @@ static void handle_power_action_thread(const char *pAction)
 	}
 }
 
+static int g_runningLoop = 1;
+const char *g_pPowerAction = NULL;
 static void handle_power_action(const char *pAction)
 {
-	std::thread th(handle_power_action_thread, pAction);
-
-	th.detach();
+	g_pPowerAction = pAction;
+	g_runningLoop = 2;
 }
 
 static const char *CONFIG_DIR = "/etc/handygccs/";
@@ -887,8 +887,6 @@ static void get_config()
 // end event command
 
 static uinput *g_ui_device = NULL;
-
-static int g_runningLoop = 1;
 
 static void handle_signal(int sig)
 {
@@ -2028,9 +2026,11 @@ static void capture_power_events()
 			if (!power_device && !power_device_2) sleepMS(DETECT_DELAY);
 
 		}
+	
 	}
-	SAFE_DELETE(power_device);
+	SAFE_DELETE(lid_switch);
 	SAFE_DELETE(power_device_2);
+	SAFE_DELETE(power_device);	
 }
 
 int main(int argc, char* argv[])
@@ -2068,84 +2068,96 @@ int main(int argc, char* argv[])
 	set_default_config();
 	get_config();
 
+	int ret = 0;
 	g_ui_device = new uinput();
 	if (g_ui_device->Create())
 	{
-		std::list<deviceItem> devices;
-		if (getDevices(devices))
+		while (g_runningLoop)
 		{
-			char model[110] = { 0, };
-			readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
-			id_system(model, devices);
-			if (g_system_type == NONE)
-			{
-				fprintf(g_logStream, "%s is not currently supported by this tool. Open an issue on " \
-					"ub at https://github.ShadowBlip/HandyGCCS if this is a bug. If possible, " \
-					"se run the capture-system.py utility found on the GitHub repository and upload " \
-					"the file with your issue.\n", model);
-				return -1;
-			}
+			g_runningLoop = 1;
 
-			std::list<std::thread*> threads;
-			if (CAPTURE_CONTROLLER && !GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
+			std::list<deviceItem> devices;
+			if (getDevices(devices))
 			{
-				threads.push_back(new std::thread(capture_controller_events));
-				threads.push_back(new std::thread(capture_ff_events));
-			}
-			if (CAPTURE_KEYBOARD)
-			{
-				if (!KEYBOARD_ADDRESS.empty() && !KEYBOARD_NAME.empty()) threads.push_back(new std::thread(capture_keyboard_events));
-				if (!KEYBOARD_2_ADDRESS.empty() && !KEYBOARD_2_NAME.empty()) threads.push_back(new std::thread(capture_keyboard_2_events));
-			}
-			if (CAPTURE_POWER)
-			{
-				threads.push_back(new std::thread(capture_power_events));
-			}
-
-			int prev_event = -1;
-			while (g_runningLoop == 1)
-			{
-				std::unique_lock<std::mutex> lock(g_event_mutex);
-
-				if (g_event_list.empty()) g_event_cond.wait_for(lock, std::chrono::milliseconds(300));
-				if (g_event_list.empty())
+				char model[110] = { 0, };
+				readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
+				id_system(model, devices);
+				if (g_system_type == NONE)
 				{
-					if (prev_event >= 0) handle_key_up(prev_event);
-					prev_event = -1;
+					fprintf(g_logStream, "%s is not currently supported by this tool. Open an issue on " \
+						"ub at https://github.ShadowBlip/HandyGCCS if this is a bug. If possible, " \
+						"se run the capture-system.py utility found on the GitHub repository and upload " \
+						"the file with your issue.\n", model);
+					ret = -1;
+					break;
 				}
-				else
-				{
-					int event = g_event_list.front();
 
-					g_event_list.pop_front();
-					if (prev_event != event)
+				std::list<std::thread*> threads;
+				if (CAPTURE_CONTROLLER && !GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
+				{
+					threads.push_back(new std::thread(capture_controller_events));
+					threads.push_back(new std::thread(capture_ff_events));
+				}
+				if (CAPTURE_KEYBOARD)
+				{
+					if (!KEYBOARD_ADDRESS.empty() && !KEYBOARD_NAME.empty()) threads.push_back(new std::thread(capture_keyboard_events));
+					if (!KEYBOARD_2_ADDRESS.empty() && !KEYBOARD_2_NAME.empty()) threads.push_back(new std::thread(capture_keyboard_2_events));
+				}
+				if (CAPTURE_POWER)
+				{
+					threads.push_back(new std::thread(capture_power_events));
+				}
+
+				int prev_event = -1;
+				while (g_runningLoop == 1)
+				{
+					std::unique_lock<std::mutex> lock(g_event_mutex);
+
+					if (g_event_list.empty()) g_event_cond.wait_for(lock, std::chrono::milliseconds(300));
+					if (g_event_list.empty())
 					{
 						if (prev_event >= 0) handle_key_up(prev_event);
-						handle_key_down(event);
-						prev_event = event;
+						prev_event = -1;
+					}
+					else
+					{
+						int event = g_event_list.front();
+
+						g_event_list.pop_front();
+						if (prev_event != event)
+						{
+							if (prev_event >= 0) handle_key_up(prev_event);
+							handle_key_down(event);
+							prev_event = event;
+						}
 					}
 				}
-			}
 
-			for (auto &thread : threads)
-			{
-				thread->join();
-				SAFE_DELETE(thread);
+				for (auto &thread : threads)
+				{
+					thread->join();
+					SAFE_DELETE(thread);
+				}
+				threads.clear();
+				if (g_pPowerAction)
+				{
+					do_handle_power_action(g_pPowerAction);
+					g_pPowerAction = NULL;
+				}
 			}
-			threads.clear();
-		}
-		else
-		{
-			fprintf(g_logStream, "cannot get device list\n");
-			return -1;
+			else
+			{
+				fprintf(g_logStream, "cannot get device list\n");
+				ret = -1;
+				break;
+			}
 		}
 	}
 	else
 	{
 		fprintf(g_logStream, "cannot create uinput\n");
-		SAFE_DELETE(g_ui_device);
-		return -1;
+		ret = -1;
 	}
 	SAFE_DELETE(g_ui_device);
-	return 0;
+	return ret;
 }
