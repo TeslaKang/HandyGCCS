@@ -54,16 +54,16 @@ Many of the handheld game consoles designed for windows have buttons on then in 
 
 ## Installation
 
-git clone https://github.com/teslakang/HandyGCCS.git
-cd HandyGCCS
-sudo ./install.sh
-sudo systemctl enable --now handycon
+git clone https://github.com/teslakang/HandyGCCS.git<br>
+cd HandyGCCS<br>
+sudo ./install.sh<br>
+sudo systemctl enable --now handycon<br>
 
 ## Removal
 sudo ./remove.sh
 
 ## Log view
-journalctl -u handycon
+./log.sh
 
 ## Config file
 /etc/handygccs/handygccs.conf
