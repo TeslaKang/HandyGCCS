@@ -67,7 +67,7 @@ sudo ./start.sh
 sudo ./stop.sh
 
 ## Test on desktop-mode
-sudo usr/bin/handycon
+sudo usr/bin/handycon<br>
 sudo usr/bin/handycon xxxx
 
 ## Removal
