@@ -60,6 +60,16 @@ cd HandyGCCS<br>
 sudo ./install.sh<br>
 sudo systemctl enable --now handycon<br>
 
+## Stsrt
+sudo ./start.sh
+
+## Stop
+sudo ./stop.sh
+
+## Test on desktop-mode
+sudo usr/bin/handycon
+sudo usr/bin/handycon xxxx
+
 ## Removal
 sudo ./remove.sh
 
