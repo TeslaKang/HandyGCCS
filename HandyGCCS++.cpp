@@ -1778,6 +1778,7 @@ static void handle_key_up(int event)
 static std::mutex g_event_mutex;
 static std::condition_variable g_event_cond;
 static std::list<int> g_event_list;
+static int g_debug = 0;
 
 static void process_key(evdev *pDev, input_event &seed_event)
 {
@@ -1793,7 +1794,22 @@ static void process_key(evdev *pDev, input_event &seed_event)
 
 	std::vector<int> active_keys;
 	pDev->active_keys(active_keys);
-	fprintf(g_logStream, "Seed Value: %d, Seed Code: %d, Seed Type: %d key count: %d \n.", seed_event.value, seed_event.code, seed_event.type, active_keys.size());
+	if (g_debug)
+	{
+		fprintf(g_logStream, "Type: %d, Code: %d, Value: %d", seed_event.type, seed_event.code, seed_event.value);
+		if (!active_keys.empty())
+		{
+			fprintf(g_logStream, ", [");
+			for (int i = 0; i < active_keys.empty(); i++)
+			{
+				if (i == 0) fprintf(g_logStream, "%d", active_keys[i]);
+				else fprintf(g_logStream, ", %d", active_keys[i]);
+			}
+			fprintf(g_logStream, "]");
+		}
+		fprintf(g_logStream, "\n");
+	}
+
 	int btn = getMatchButton(active_keys);
 	if (btn >= 0)
 	{
@@ -1849,9 +1865,9 @@ static void capture_controller_events()
 		}
 		else
 		{
-			fprintf(g_logStream, "Attempting to grab controller device...%s %s\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());
 			if (!GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
 			{
+				fprintf(g_logStream, "Attempting to grab controller device...'%s' '%s'\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());				
 				controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
 				g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
 			} 
@@ -1942,8 +1958,11 @@ static void capture_keyboard_events()
 		}
 		else
 		{
-			fprintf(g_logStream, "Attempting to grab keyboard device... %s %s\n", KEYBOARD_NAME.c_str(), KEYBOARD_ADDRESS.c_str());
-			if (!KEYBOARD_ADDRESS.empty() && !KEYBOARD_NAME.empty()) keyboard_device = grabDevice(KEYBOARD_NAME, KEYBOARD_ADDRESS, true);
+			if (!KEYBOARD_ADDRESS.empty() && !KEYBOARD_NAME.empty())
+			{
+				fprintf(g_logStream, "Attempting to grab keyboard device... '%s' '%s'\n", KEYBOARD_NAME.c_str(), KEYBOARD_ADDRESS.c_str());
+				keyboard_device = grabDevice(KEYBOARD_NAME, KEYBOARD_ADDRESS, true);
+			}
 			if (!keyboard_device) sleepMS(DETECT_DELAY);
 		}
 	}
@@ -1968,8 +1987,11 @@ static void capture_keyboard_2_events()
 		}
 		else
 		{
-			fprintf(g_logStream, "Attempting to grab keyboard device 2 %s %s\n", KEYBOARD_2_NAME.c_str(), KEYBOARD_2_ADDRESS.c_str());
-			if (!KEYBOARD_2_ADDRESS.empty() && !KEYBOARD_2_NAME.empty()) keyboard_2_device = grabDevice(KEYBOARD_2_NAME, KEYBOARD_2_ADDRESS, true);
+			if (!KEYBOARD_2_ADDRESS.empty() && !KEYBOARD_2_NAME.empty())
+			{
+				fprintf(g_logStream, "Attempting to grab keyboard device 2 '%s' '%s'\n", KEYBOARD_2_NAME.c_str(), KEYBOARD_2_ADDRESS.c_str());
+				keyboard_2_device = grabDevice(KEYBOARD_2_NAME, KEYBOARD_2_ADDRESS, true);
+			}
 			if (!keyboard_2_device) sleepMS(DETECT_DELAY);
 		}
 	}
@@ -2019,14 +2041,23 @@ static void capture_power_events()
 		}
 		else
 		{
-			fprintf(g_logStream, "Attempting to grab power device... %s %s %s \n", POWER_BUTTON_PRIMARY.c_str(), POWER_BUTTON_SECONDARY.c_str(), LID_SWITCH.c_str());
-			if (!POWER_BUTTON_PRIMARY.empty()) power_device = grabDevice("Power Button", POWER_BUTTON_PRIMARY);
-			if (!POWER_BUTTON_SECONDARY.empty()) power_device_2 = grabDevice("Power Button", POWER_BUTTON_SECONDARY);
-			if (!LID_SWITCH.empty()) lid_switch = grabDevice("Lid Switch", LID_SWITCH);
+			if (!POWER_BUTTON_PRIMARY.empty())
+			{
+				fprintf(g_logStream, "Attempting to grab primary power device... '%s' \n", POWER_BUTTON_PRIMARY.c_str());
+				power_device = grabDevice("Power Button", POWER_BUTTON_PRIMARY);
+			} 
+			if (!POWER_BUTTON_SECONDARY.empty())
+			{
+				fprintf(g_logStream, "Attempting to grab secondary power device... '%s' \n", POWER_BUTTON_SECONDARY.c_str());
+				power_device_2 = grabDevice("Power Button", POWER_BUTTON_SECONDARY);
+			}
+			if (!LID_SWITCH.empty())
+			{
+				fprintf(g_logStream, "Attempting to grab lid switch device... '%s' \n", LID_SWITCH.c_str());
+				lid_switch = grabDevice("Lid Switch", LID_SWITCH);
+			}
 			if (!power_device && !power_device_2) sleepMS(DETECT_DELAY);
-
-		}
-	
+		}	
 	}
 	SAFE_DELETE(lid_switch);
 	SAFE_DELETE(power_device_2);
@@ -2041,22 +2072,45 @@ int main(int argc, char* argv[])
 	signal(SIGHUP, handle_signal);
     signal(SIGTERM, handle_signal);
 
+	char model[110] = { 0, };
+	readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
+
 	if (argc > 1)
 	{
 		std::list<deviceItem> devices;
 		if (getDevices(devices))
 		{
+			int powerCnt = 0;
+
+			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
 			for (auto device : devices)
 			{
 				fprintf(g_logStream, "----%s----\n", device.path.c_str());
 				fprintf(g_logStream, "Input device name: \"%s\"\n", device.name.c_str());
 				fprintf(g_logStream, "Input device phys: \"%s\"\n", device.phys.c_str());
 				fprintf(g_logStream, "Input device ID: bus %#x vendor %#x product %#x\n\n", device.bustype, device.vendor, device.product);
+
+				if (device.name == "Power Button")
+				{
+					if (powerCnt == 0) POWER_BUTTON_PRIMARY = device.phys.c_str();
+					else POWER_BUTTON_SECONDARY = device.phys.c_str();
+					powerCnt++;
+				}
+				else if (device.name == "Lid Switch") LID_SWITCH = device.phys.c_str();
+				else if (device.name == KEYBOARD_NAME) KEYBOARD_ADDRESS = device.phys.c_str();
+				else if (device.name == GAMEPAD_NAME) GAMEPAD_ADDRESS = device.phys.c_str();
 			}
-			return 0;
+
+			fprintf(g_logStream, "Model name is '%s' with debug mode!!\n", model);
+
+			g_debug = 1;
 		}
-		fprintf(g_logStream, "cannot get device list\n");
-		return -1;
+		else
+		{
+			fprintf(g_logStream, "cannot get device list\n");
+			return -1;
+		}
 	}
 
 	get_user();
@@ -2079,8 +2133,6 @@ int main(int argc, char* argv[])
 			std::list<deviceItem> devices;
 			if (getDevices(devices))
 			{
-				char model[110] = { 0, };
-				readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
 				id_system(model, devices);
 				if (g_system_type == NONE)
 				{
