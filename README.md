@@ -43,6 +43,7 @@ Many of the handheld game consoles designed for windows have buttons on then in 
 - GPD Win3
 - GPD WinMax2
 - GPD Win4
+- GPD Win Mini
 
 ### Lenovo
 - Legion Go
