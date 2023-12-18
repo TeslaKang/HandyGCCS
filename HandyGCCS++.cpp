@@ -1719,8 +1719,6 @@ static void emit_now(const EventCode *pCode, bool isDown)
 		{
 			int cnt = getEventCount(pCode);
 
-			fprintf(g_logStream, "Event count: %d\n.", cnt);
-
 			if (isDown == false) // need reversed
 			{
 				for (int i = cnt - 1; i >= 0; i--)
