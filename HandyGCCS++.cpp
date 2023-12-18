@@ -1800,7 +1800,7 @@ static void process_key(evdev *pDev, input_event &seed_event)
 		if (!active_keys.empty())
 		{
 			fprintf(g_logStream, ", [");
-			for (int i = 0; i < active_keys.empty(); i++)
+			for (int i = 0; i < active_keys.count(); i++)
 			{
 				if (i == 0) fprintf(g_logStream, "%d", active_keys[i]);
 				else fprintf(g_logStream, ", %d", active_keys[i]);
