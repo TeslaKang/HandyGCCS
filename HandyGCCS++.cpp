@@ -896,7 +896,7 @@ static void handle_signal(int sig)
 enum SystemType
 {
 	NONE, ALY_GEN1, ANB_GEN1, AOK_GEN1, AOK_GEN2,
-	AYA_GEN1, AYA_GEN2, AYA_GEN3, AYA_GEN4, AYA_GEN5, AYA_GEN6, AYA_GEN7,
+	AYA_GEN1, AYA_GEN2, AYA_GEN3, AYA_GEN4, AYA_GEN5, AYA_GEN6, AYA_GEN7, AYA_GEN8,
 	AYN_GEN1, AYN_GEN2, AYN_GEN3, GO_GEN1, GPD_GEN1, GPD_GEN2, GPD_GEN3, GPD_GEN4,
 	OXP_GEN1, OXP_GEN2, OXP_GEN3, OXP_GEN4, OXP_GEN5, OXP_GEN6, OXP_GEN7
 };
@@ -1266,6 +1266,33 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 97, 125, 187 });
+	}
+	else if (model == "KUN")
+	{
+		g_system_type = AYA_GEN8;
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4.1/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+
+		// BUTTON 1: LC Button
+		assignButtonKey(1, { 97, 125, 185 });
+
+		// BUTTON 2: AYA small Button
+		assignButtonKey(2, { 32, 125 });
+
+		// BUTTON 4: RC Button
+		assignButtonKey(4, { 97, 125, 186 });
+
+		// BUTTON 5: AYAspace 
+		assignButtonKey(5, { 97, 125, 187 });
+
+		// BUTTON 6: T Button
+		assignButtonKey(6, { 97, 125, 188 });
 	}
 	// Ayn Devices
 	else if (model == "Loki Max")
