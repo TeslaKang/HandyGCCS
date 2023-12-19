@@ -33,6 +33,7 @@ Many of the handheld game consoles designed for windows have buttons on then in 
 - Air/Pro/Plus
 - 2/2S
 - GEEK/1S
+- KUN
 
 ### Ayn
 - Loki Max
