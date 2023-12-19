@@ -4,7 +4,7 @@ It's faster and simpler, more stable.
 It's a single file, so it's easier to manage.
 Additionally, closing the back cover(lid-switch) is also supported.
 
-below is same as HandyGCCS..
+below is same as HandyGCCS(https://github.com/ShadowBlip/HandyGCCS).
 
 # HandyGCCS
 Handheld Game Console Controller Support (Handy Geeks) for Linux
