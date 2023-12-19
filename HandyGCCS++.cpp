@@ -39,26 +39,26 @@ static const char* ws = " \t\n\r\f\v";
 // trim from end of string (right)
 static inline std::string& rtrim(std::string& s, const char* t = ws)
 {
-    s.erase(s.find_last_not_of(t) + 1);
-    return s;
+	s.erase(s.find_last_not_of(t) + 1);
+	return s;
 }
 
 // trim from beginning of string (left)
 static inline std::string& ltrim(std::string& s, const char* t = ws)
 {
-    s.erase(0, s.find_first_not_of(t));
-    return s;
+	s.erase(0, s.find_first_not_of(t));
+	return s;
 }
 
 // trim from both ends of string (right then left)
 static inline std::string& trim(std::string& s, const char* t = ws)
 {
-    return ltrim(rtrim(s, t), t);
+	return ltrim(rtrim(s, t), t);
 }
 
-static int readFileContent(const char *pName, char *pBuf, int len)
+static int readFileContent(const char* pName, char* pBuf, int len)
 {
-	FILE *fp = fopen(pName, "rt");
+	FILE* fp = fopen(pName, "rt");
 
 	if (fp)
 	{
@@ -70,7 +70,7 @@ static int readFileContent(const char *pName, char *pBuf, int len)
 			{
 				pBuf[i] = 0;
 				break;
-			} 
+			}
 		}
 		return 1;
 	}
@@ -79,29 +79,29 @@ static int readFileContent(const char *pName, char *pBuf, int len)
 
 static std::string readExeResult(const char* cmd)
 {
-    char buffer[128];
-    std::string result = "";
-    FILE* pipe = popen(cmd, "r");
+	char buffer[128];
+	std::string result = "";
+	FILE* pipe = popen(cmd, "r");
 
-    if (!pipe) return result;
-    try
+	if (!pipe) return result;
+	try
 	{
-        while (fgets(buffer, 100, pipe) != NULL) result += buffer;
-    }
+		while (fgets(buffer, 100, pipe) != NULL) result += buffer;
+	}
 	catch (...)
 	{
-    }
-    pclose(pipe);
-    return result;
+	}
+	pclose(pipe);
+	return result;
 }
 
 static std::string get_cpu_vendor()
 {
-    unsigned int level = 0;
-    unsigned int eax = 0;
+	unsigned int level = 0;
+	unsigned int eax = 0;
 	char vendor[16] = { 0, };
 
-    __get_cpuid(level, &eax, (unsigned int *)&vendor[0], (unsigned int *)&vendor[4], (unsigned int *)&vendor[8]);
+	__get_cpuid(level, &eax, (unsigned int*)&vendor[0], (unsigned int*)&vendor[4], (unsigned int*)&vendor[8]);
 	return vendor;
 }
 
@@ -112,9 +112,9 @@ static void sleepMS(int ms)
 
 static bool fileExists(std::string path)
 {
-  	struct stat buffer;
+	struct stat buffer;
 
-  	return (stat(path.c_str(), &buffer) == 0); 
+	return (stat(path.c_str(), &buffer) == 0);
 }
 
 struct deviceItem
@@ -159,13 +159,13 @@ static bool steam_ifrunning_deckui(std::string cmd)
 				std::string run = "su " + USER + " -c '" + steam_path + " -ifrunning " + cmd + "'";
 
 				return system(run.c_str()) >= 0;
-			} 
+			}
 		}
 	}
 	return false;
 }
 
-static const char *CHIMERA_LAUNCHER_PATH = "/usr/share/chimera/bin/chimera-web-launcher";
+static const char* CHIMERA_LAUNCHER_PATH = "/usr/share/chimera/bin/chimera-web-launcher";
 static bool launch_chimera()
 {
 	if (fileExists(CHIMERA_LAUNCHER_PATH))
@@ -196,13 +196,13 @@ static void get_user()
 
 static void restore_hidden()
 {
-	DIR *dir = opendir(HIDE_PATH.c_str());
+	DIR* dir = opendir(HIDE_PATH.c_str());
 
 	if (dir)
 	{
 		while (1)
 		{
-			dirent *ent = readdir(dir);
+			dirent* ent = readdir(dir);
 
 			if (!ent) break;
 			if (ent->d_type != DT_DIR) rename((HIDE_PATH + ent->d_name).c_str(), (EVENT_PATH + ent->d_name).c_str());
@@ -211,10 +211,10 @@ static void restore_hidden()
 	}
 }
 
-static bool getDevices(std::list<deviceItem> &devices)
+static bool getDevices(std::list<deviceItem>& devices)
 {
-    for(int i = 0; i < 100; i++)
-    {
+	for (int i = 0; i < 100; i++)
+	{
 		std::string event = "event" + std::to_string(i);
 
 		if (fileExists(EVENT_PATH + event))
@@ -223,7 +223,7 @@ static bool getDevices(std::list<deviceItem> &devices)
 
 			if (fd > 0)
 			{
-				libevdev *dev = NULL;
+				libevdev* dev = NULL;
 				int rc = libevdev_new_from_fd(fd, &dev);
 
 				if (rc < 0)
@@ -233,10 +233,10 @@ static bool getDevices(std::list<deviceItem> &devices)
 					continue;
 				}
 
-				const char *name = libevdev_get_name(dev);
+				const char* name = libevdev_get_name(dev);
 				if (!name) continue;
 
-				const char *phys = libevdev_get_phys(dev);
+				const char* phys = libevdev_get_phys(dev);
 				if (!phys) continue;
 
 				deviceItem item;
@@ -253,16 +253,16 @@ static bool getDevices(std::list<deviceItem> &devices)
 				close(fd);
 			}
 		}
-    }
+	}
 	return !devices.empty();
 }
 
 static int test_bit(const char* bitmask, int bit)
 {
-    return bitmask[bit / 8] & (1 << (bit % 8));
+	return bitmask[bit / 8] & (1 << (bit % 8));
 }
 
-static bool emit_event(int fd, input_event &event)
+static bool emit_event(int fd, input_event& event)
 {
 	if (fd >= 0) return write(fd, &event, sizeof(event)) >= 0;
 	return false;
@@ -279,7 +279,7 @@ static bool emit_event(int fd, int ev_type, int ev_code, int ev_value)
 		event.code = ev_code;
 		event.value = ev_value;
 		return write(fd, &event, sizeof(event)) >= 0;
-	} 
+	}
 	return false;
 }
 
@@ -306,9 +306,9 @@ struct evdev
 			if (fd >= 0) close(fd);
 			libevdev_grab(dev, LIBEVDEV_UNGRAB);
 			libevdev_free(dev);
-		} 
+		}
 	}
-	int active_keys(std::vector<int> &keys)
+	int active_keys(std::vector<int>& keys)
 	{
 		keys.clear();
 		if (dev)
@@ -335,7 +335,7 @@ struct evdev
 		}
 		return (int)keys.size();
 	}
-	bool emit_event(input_event &event)
+	bool emit_event(input_event& event)
 	{
 		return ::emit_event(libevdev_get_fd(dev), event);
 	}
@@ -360,7 +360,7 @@ static evdev* grabDevice(std::string name, std::string phys, bool hidden = false
 
 				if (fd > 0)
 				{
-					libevdev *dev = NULL;
+					libevdev* dev = NULL;
 					int rc = libevdev_new_from_fd(fd, &dev);
 
 					if (rc < 0)
@@ -385,16 +385,16 @@ static evdev* grabDevice(std::string name, std::string phys, bool hidden = false
 	return NULL;
 }
 
-static void resyncDevice(libevdev *dev)
+static void resyncDevice(libevdev* dev)
 {
-    int rc = -1;
+	int rc = -1;
 
-    do
+	do
 	{
-        input_event ev;
+		input_event ev;
 
-        rc = libevdev_next_event(dev, LIBEVDEV_READ_FLAG_SYNC, &ev);
-    } while (rc == LIBEVDEV_READ_STATUS_SYNC);
+		rc = libevdev_next_event(dev, LIBEVDEV_READ_FLAG_SYNC, &ev);
+	} while (rc == LIBEVDEV_READ_STATUS_SYNC);
 }
 
 static void do_rumble(int fd, int button = 0, int interval = 10, int length = 1000, int delay = 0)
@@ -414,23 +414,23 @@ static void do_rumble(int fd, int button = 0, int interval = 10, int length = 10
 	event.type = EV_FF;
 	event.code = effect.id;
 	event.value = 1;
-	err = write(fd, (const void *)&event, sizeof(event));
+	err = write(fd, (const void*)&event, sizeof(event));
 
 	sleepMS(interval);
 
 	event.value = 0;
-	err = write(fd, (const void *)&event, sizeof(event));
+	err = write(fd, (const void*)&event, sizeof(event));
 
 	err = ioctl(fd, EVIOCRMFF, effect.id);
 }
 
-static int g_EV_KEY[] = 
+static int g_EV_KEY[] =
 {
-	KEY_ESC, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, 
+	KEY_ESC, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0,
 	KEY_MINUS, KEY_EQUAL, KEY_BACKSPACE, KEY_TAB, KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T,
 	KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_LEFTBRACE, KEY_RIGHTBRACE, KEY_ENTER,
 	KEY_LEFTCTRL, KEY_A, KEY_S, KEY_D, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L,
-	KEY_SEMICOLON, KEY_APOSTROPHE, KEY_GRAVE, KEY_LEFTSHIFT, KEY_BACKSLASH, 
+	KEY_SEMICOLON, KEY_APOSTROPHE, KEY_GRAVE, KEY_LEFTSHIFT, KEY_BACKSLASH,
 	KEY_Z, KEY_X, KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_COMMA, KEY_DOT, KEY_SLASH,
 	KEY_RIGHTSHIFT, KEY_KPASTERISK, KEY_LEFTALT, KEY_SPACE, KEY_CAPSLOCK,
 	KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10,
@@ -446,7 +446,7 @@ static int g_EV_KEY[] =
 	KEY_BACK, KEY_FORWARD, KEY_NEXTSONG, KEY_PLAYPAUSE, KEY_PREVIOUSSONG, KEY_STOPCD,
 	KEY_HOMEPAGE, KEY_REFRESH, KEY_F13, KEY_F14, KEY_F15, KEY_SEARCH, KEY_MEDIA,
 	BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, BTN_TL, BTN_TR, BTN_SELECT, BTN_START,
-	BTN_MODE, BTN_THUMBL, BTN_THUMBR 
+	BTN_MODE, BTN_THUMBL, BTN_THUMBR
 };
 
 struct EV_ABS_STRUCT
@@ -454,8 +454,8 @@ struct EV_ABS_STRUCT
 	int type;
 	input_absinfo info;
 };
-    
-static EV_ABS_STRUCT g_EV_ABS[] = 
+
+static EV_ABS_STRUCT g_EV_ABS[] =
 {
 	{ ABS_X, {0, -32768, 32767, 16, 128, 0} },
 	{ ABS_Y, {0, -32768, 32767, 16, 128, 0} },
@@ -466,20 +466,20 @@ static EV_ABS_STRUCT g_EV_ABS[] =
 	{ ABS_HAT0X, {0, -1, 1, 0, 0, 0} },
 	{ ABS_HAT0Y, {0, -1, 1, 0, 0, 0} }
 };
-    
-static int g_EV_MSC[] = 
+
+static int g_EV_MSC[] =
 {
 	MSC_SCAN
 };
 
-static int g_EV_LED[] = 
+static int g_EV_LED[] =
 {
 	LED_NUML,
 	LED_CAPSL,
 	LED_SCROLLL
 };
 
-static int g_EV_FF[] = 
+static int g_EV_FF[] =
 {
 	FF_RUMBLE,
 	FF_PERIODIC,
@@ -526,7 +526,7 @@ struct uinput
 
 	uinput()
 	{
-//		char *pinput = suinput_get_uinput_path();
+		//		char *pinput = suinput_get_uinput_path();
 		fd = open("/dev/uinput", O_RDWR | O_NONBLOCK);
 	}
 	~uinput()
@@ -535,52 +535,52 @@ struct uinput
 		{
 			ioctl(fd, UI_DEV_DESTROY);
 			close(fd);
-		} 
+		}
 	}
 	int EnableEvent(uint16_t ev_type, uint16_t ev_code)
 	{
 		if (fd >= 0)
 		{
-        	unsigned long io;
+			unsigned long io;
 
-        	if (ioctl(fd, UI_SET_EVBIT, ev_type) == -1) return -1;
+			if (ioctl(fd, UI_SET_EVBIT, ev_type) == -1) return -1;
 
 			switch (ev_type)
 			{
 			case EV_KEY:
-					io = UI_SET_KEYBIT;
-					break;
+				io = UI_SET_KEYBIT;
+				break;
 			case EV_REL:
-					io = UI_SET_RELBIT;
-					break;
+				io = UI_SET_RELBIT;
+				break;
 			case EV_ABS:
-					io = UI_SET_ABSBIT;
-					break;
+				io = UI_SET_ABSBIT;
+				break;
 			case EV_MSC:
-					io = UI_SET_MSCBIT;
-					break;
+				io = UI_SET_MSCBIT;
+				break;
 			case EV_SW:
-					io = UI_SET_SWBIT;
-					break;
+				io = UI_SET_SWBIT;
+				break;
 			case EV_LED:
-					io = UI_SET_LEDBIT;
-					break;
+				io = UI_SET_LEDBIT;
+				break;
 			case EV_SND:
-					io = UI_SET_SNDBIT;
-					break;
+				io = UI_SET_SNDBIT;
+				break;
 			case EV_FF:
-					io = UI_SET_FFBIT;
-					break;
+				io = UI_SET_FFBIT;
+				break;
 			default:
-					errno = EINVAL;
-					return -1;
+				errno = EINVAL;
+				return -1;
 			}
 
 			return ioctl(fd, io, ev_code);
 		}
 		return -1;
-	}	
-	bool Create(const char *name = "Handheld Controller", int bustype = BUS_USB, int vendor = 0x045e, int product = 0x028e, int version = 0x110)
+	}
+	bool Create(const char* name = "Handheld Controller", int bustype = BUS_USB, int vendor = 0x045e, int product = 0x028e, int version = 0x110)
 	{
 		if (fd >= 0)
 		{
@@ -588,7 +588,7 @@ struct uinput
 
 			snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, name);
 			uidev.id.bustype = bustype;
-			uidev.id.vendor  = vendor;
+			uidev.id.vendor = vendor;
 			uidev.id.product = product;
 			uidev.id.version = version;
 			uidev.ff_effects_max = 16;
@@ -608,7 +608,7 @@ struct uinput
 		}
 		return false;
 	}
-	int Read(input_event *pEvent)
+	int Read(input_event* pEvent)
 	{
 		if (fd >= 0)
 		{
@@ -626,7 +626,7 @@ struct uinput
 		}
 		return -1;
 	}
-	bool emit_event(input_event &event)
+	bool emit_event(input_event& event)
 	{
 		return ::emit_event(fd, event);
 	}
@@ -638,7 +638,7 @@ struct uinput
 
 // end basic code
 
-static FILE *g_logStream = NULL;
+static FILE* g_logStream = NULL;
 
 // begin event command
 
@@ -646,33 +646,33 @@ struct EventCode
 {
 	int type;
 	int code;
-	const char *cmd;
+	const char* cmd;
 };
 
-static const char *OpenChimera = "Open Chimera";
-static const char *ToggleGyro = "Toggle Gyro";
-static const char *ToggleMouseMode = "Toggle Mouse Mode";
-static const char *Toggle_Performance = "Toggle Performance";
+static const char* OpenChimera = "Open Chimera";
+static const char* ToggleGyro = "Toggle Gyro";
+static const char* ToggleMouseMode = "Toggle Mouse Mode";
+static const char* Toggle_Performance = "Toggle Performance";
 
-static const EventCode EVENT_NULL[] = {{0}};
-static const EventCode EVENT_ALT_TAB[] = {{EV_KEY, KEY_LEFTALT}, {EV_KEY, KEY_TAB}, {0}};
-static const EventCode EVENT_ESC[] = {{EV_MSC, MSC_SCAN}, {EV_KEY, KEY_ESC}, {0}};
-static const EventCode EVENT_KILL[] = {{EV_KEY, KEY_LEFTMETA}, {EV_KEY, KEY_LEFTCTRL}, {EV_KEY, KEY_ESC}, {0}};
-static const EventCode EVENT_MODE[] = {{EV_KEY, BTN_MODE}, {0}};
-static const EventCode EVENT_OPEN_CHIM[] = {{0, 0, OpenChimera}, {0}};
-static const EventCode EVENT_OSK[] = {{EV_KEY, BTN_MODE}, {EV_KEY, BTN_NORTH}, {0}};
-static const EventCode EVENT_OSK_DE[] = {{EV_KEY, KEY_LEFTMETA}, {EV_KEY, KEY_LEFTCTRL}, {EV_KEY, KEY_O}, {0}};
-static const EventCode EVENT_OSK_NES[] = {{EV_KEY, BTN_MODE}, {EV_KEY, BTN_WEST}, {0}};
-static const EventCode EVENT_QAM[] = {{EV_KEY, BTN_MODE}, {EV_KEY, BTN_SOUTH}, {0}};
-static const EventCode EVENT_QAM_NES[] = {{EV_KEY, BTN_MODE}, {EV_KEY, BTN_EAST}, {0}};
-static const EventCode EVENT_SCR[] = {{EV_KEY, BTN_MODE}, {EV_KEY, BTN_TR}, {0}};
-static const EventCode EVENT_TOGGLE_GYRO[] = {{0, 0, ToggleGyro}, {0}};
-static const EventCode EVENT_TOGGLE_MOUSE[] = {{0, 0, ToggleMouseMode}, {0}};
-static const EventCode EVENT_TOGGLE_PERF[] = {{0, 0, Toggle_Performance}, {0}};
-static const EventCode EVENT_VOLUP[] = {{EV_KEY, KEY_VOLUMEUP}, {0}};
-static const EventCode EVENT_VOLDOWN[] = {{EV_KEY, KEY_VOLUMEDOWN}, {0}};
+static const EventCode EVENT_NULL[] = { {0} };
+static const EventCode EVENT_ALT_TAB[] = { {EV_KEY, KEY_LEFTALT}, {EV_KEY, KEY_TAB}, {0} };
+static const EventCode EVENT_ESC[] = { {EV_MSC, MSC_SCAN}, {EV_KEY, KEY_ESC}, {0} };
+static const EventCode EVENT_KILL[] = { {EV_KEY, KEY_LEFTMETA}, {EV_KEY, KEY_LEFTCTRL}, {EV_KEY, KEY_ESC}, {0} };
+static const EventCode EVENT_MODE[] = { {EV_KEY, BTN_MODE}, {0} };
+static const EventCode EVENT_OPEN_CHIM[] = { {0, 0, OpenChimera}, {0} };
+static const EventCode EVENT_OSK[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_NORTH}, {0} };
+static const EventCode EVENT_OSK_DE[] = { {EV_KEY, KEY_LEFTMETA}, {EV_KEY, KEY_LEFTCTRL}, {EV_KEY, KEY_O}, {0} };
+static const EventCode EVENT_OSK_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_WEST}, {0} };
+static const EventCode EVENT_QAM[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_SOUTH}, {0} };
+static const EventCode EVENT_QAM_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_EAST}, {0} };
+static const EventCode EVENT_SCR[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_TR}, {0} };
+static const EventCode EVENT_TOGGLE_GYRO[] = { {0, 0, ToggleGyro}, {0} };
+static const EventCode EVENT_TOGGLE_MOUSE[] = { {0, 0, ToggleMouseMode}, {0} };
+static const EventCode EVENT_TOGGLE_PERF[] = { {0, 0, Toggle_Performance}, {0} };
+static const EventCode EVENT_VOLUP[] = { {EV_KEY, KEY_VOLUMEUP}, {0} };
+static const EventCode EVENT_VOLDOWN[] = { {EV_KEY, KEY_VOLUMEDOWN}, {0} };
 
-static int getEventCount(const EventCode *pEvent)
+static int getEventCount(const EventCode* pEvent)
 {
 	int ret = 0;
 
@@ -685,9 +685,9 @@ static int getEventCount(const EventCode *pEvent)
 	return ret;
 }
 
-static std::map<std::string, const EventCode *> EVENT_MAP =
+static std::map<std::string, const EventCode*> EVENT_MAP =
 {
-	{ "ALT_TAB", EVENT_ALT_TAB }, 
+	{ "ALT_TAB", EVENT_ALT_TAB },
 	{ "ESC", EVENT_ESC },
 	{ "KILL", EVENT_KILL },
 	{ "MODE", EVENT_MODE },
@@ -705,13 +705,13 @@ static std::map<std::string, const EventCode *> EVENT_MAP =
 	{ "VOLDOWN", EVENT_VOLDOWN }
 };
 
-static const std::vector<const EventCode *> INSTANT_EVENTS = { EVENT_MODE, EVENT_OPEN_CHIM, EVENT_TOGGLE_GYRO, EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN };
-static const std::vector<const EventCode *> QUEUED_EVENTS = { EVENT_ALT_TAB, EVENT_ESC, EVENT_KILL, EVENT_OSK, EVENT_OSK_DE, EVENT_OSK_NES, EVENT_QAM, EVENT_QAM_NES, EVENT_SCR };
+static const std::vector<const EventCode*> INSTANT_EVENTS = { EVENT_MODE, EVENT_OPEN_CHIM, EVENT_TOGGLE_GYRO, EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN };
+static const std::vector<const EventCode*> QUEUED_EVENTS = { EVENT_ALT_TAB, EVENT_ESC, EVENT_KILL, EVENT_OSK, EVENT_OSK_DE, EVENT_OSK_NES, EVENT_QAM, EVENT_QAM_NES, EVENT_SCR };
 
-static const char *POWER_ACTION_HIBERNATE = "Hibernate";
-static const char *POWER_ACTION_SHUTDOWN = "Shutdown";
-static const char *POWER_ACTION_SUSPEND = "Suspend";
-static std::map<std::string, const char *> POWER_ACTION_MAP =
+static const char* POWER_ACTION_HIBERNATE = "Hibernate";
+static const char* POWER_ACTION_SHUTDOWN = "Shutdown";
+static const char* POWER_ACTION_SUSPEND = "Suspend";
+static std::map<std::string, const char*> POWER_ACTION_MAP =
 {
 	{ "HIBERNATE", POWER_ACTION_HIBERNATE },
 	{ "SHUTDOWN",  POWER_ACTION_SHUTDOWN },
@@ -720,9 +720,9 @@ static std::map<std::string, const char *> POWER_ACTION_MAP =
 
 static std::map<std::string, std::string> g_config;
 
-static std::map<int, const EventCode *> g_button_map;
-static const char *g_power_action = POWER_ACTION_SUSPEND;
-static const char *g_lid_action = POWER_ACTION_SUSPEND;
+static std::map<int, const EventCode*> g_button_map;
+static const char* g_power_action = POWER_ACTION_SUSPEND;
+static const char* g_lid_action = POWER_ACTION_SUSPEND;
 
 static void map_config(std::string key, int idx, int power = 0)
 {
@@ -744,7 +744,7 @@ static void map_config(std::string key, int idx, int power = 0)
 			{
 				if (power == 2) g_lid_action = NULL;
 				else g_power_action = NULL;
-			} 
+			}
 			else
 			{
 				if (power == 2) g_lid_action = it2->second;
@@ -808,7 +808,7 @@ static void assignButtonKey(int idx, std::initializer_list<int> keys, int other 
 	else fprintf(g_logStream, "out of button range: %d \n", idx);
 }
 
-static void do_handle_power_action(const char *pAction)
+static void do_handle_power_action(const char* pAction)
 {
 	if (pAction) fprintf(g_logStream, "Power Action: %s \n", pAction);
 	else fprintf(g_logStream, "Power Action: none \n");
@@ -827,34 +827,34 @@ static void do_handle_power_action(const char *pAction)
 }
 
 static int g_runningLoop = 1;
-const char *g_pPowerAction = NULL;
-static void handle_power_action(const char *pAction)
+const char* g_pPowerAction = NULL;
+static void handle_power_action(const char* pAction)
 {
 	g_pPowerAction = pAction;
 	g_runningLoop = 2;
 }
 
-static const char *CONFIG_DIR = "/etc/handygccs/";
-static const char *CONFIG_PATH = "/etc/handygccs/handygccs.conf";
+static const char* CONFIG_DIR = "/etc/handygccs/";
+static const char* CONFIG_PATH = "/etc/handygccs/handygccs.conf";
 
 static void write_config()
 {
-	FILE *fp = fopen(CONFIG_PATH, "wt");
+	FILE* fp = fopen(CONFIG_PATH, "wt");
 
 	if (fp)
 	{
 		fputs("[Button Map]\r\n", fp);
-		for (auto &item : g_config)
+		for (auto& item : g_config)
 		{
 			fputs((item.first + " = " + item.second + "\r\n").c_str(), fp);
 		}
-		fclose(fp);		
+		fclose(fp);
 	}
 }
 
 static void get_config()
 {
-	FILE *fp = fopen(CONFIG_PATH, "rt");
+	FILE* fp = fopen(CONFIG_PATH, "rt");
 
 	if (fp)
 	{
@@ -886,7 +886,7 @@ static void get_config()
 
 // end event command
 
-static uinput *g_ui_device = NULL;
+static uinput* g_ui_device = NULL;
 
 static void handle_signal(int sig)
 {
@@ -895,10 +895,10 @@ static void handle_signal(int sig)
 
 enum SystemType
 {
-	NONE, ALY_GEN1, ANB_GEN1, AOK_GEN1, AOK_GEN2, 
-	AYA_GEN1, AYA_GEN2, AYA_GEN3, AYA_GEN4, AYA_GEN5, AYA_GEN6, AYA_GEN7, 
+	NONE, ALY_GEN1, ANB_GEN1, AOK_GEN1, AOK_GEN2,
+	AYA_GEN1, AYA_GEN2, AYA_GEN3, AYA_GEN4, AYA_GEN5, AYA_GEN6, AYA_GEN7,
 	AYN_GEN1, AYN_GEN2, AYN_GEN3, GO_GEN1, GPD_GEN1, GPD_GEN2, GPD_GEN3, GPD_GEN4,
-	OXP_GEN1, OXP_GEN2, OXP_GEN3, OXP_GEN4, OXP_GEN5, OXP_GEN6, OXP_GEN7 
+	OXP_GEN1, OXP_GEN2, OXP_GEN3, OXP_GEN4, OXP_GEN5, OXP_GEN6, OXP_GEN7
 };
 static SystemType g_system_type = NONE;
 
@@ -918,39 +918,39 @@ static std::string	LID_SWITCH = "";
 
 static int DETECT_DELAY = 500;
 
-static void id_system(std::string model, std::list<deviceItem> &devices)
+static void id_system(std::string model, std::list<deviceItem>& devices)
 {
 	std::string vendor = get_cpu_vendor();
 
-    // ASUS Devices
+	// ASUS Devices
 	if (model == "ROG Ally RC71L_RC71L")
 	{
-        g_system_type = ALY_GEN1;
-    	BUTTON_DELAY = 0.2;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_NAME = "Asus Keyboard";
-    	KEYBOARD_2_NAME = "Asus Keyboard";
+		g_system_type = ALY_GEN1;
+		BUTTON_DELAY = 0.2;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_NAME = "Asus Keyboard";
+		KEYBOARD_2_NAME = "Asus Keyboard";
 
-    	const char *GAMEPAD_ADDRESS_LIST[] =
+		const char* GAMEPAD_ADDRESS_LIST[] =
 		{
-            "usb-0000:08:00.3-2/input0",
-            "usb-0000:09:00.3-2/input0",
-            "usb-0000:0a:00.3-2/input0",
+			"usb-0000:08:00.3-2/input0",
+			"usb-0000:09:00.3-2/input0",
+			"usb-0000:0a:00.3-2/input0",
 		};
-    	const char *KEYBOARD_ADDRESS_LIST[] =
+		const char* KEYBOARD_ADDRESS_LIST[] =
 		{
-            "usb-0000:08:00.3-3/input0",
-            "usb-0000:09:00.3-3/input0",
-            "usb-0000:0a:00.3-3/input0",
+			"usb-0000:08:00.3-3/input0",
+			"usb-0000:09:00.3-3/input0",
+			"usb-0000:0a:00.3-3/input0",
 		};
-    	const char *KEYBOARD_2_ADDRESS_LIST[] =
+		const char* KEYBOARD_2_ADDRESS_LIST[] =
 		{
-            "usb-0000:08:00.3-3/input2",
-            "usb-0000:09:00.3-3/input2",
-            "usb-0000:0a:00.3-3/input2",
+			"usb-0000:08:00.3-3/input2",
+			"usb-0000:09:00.3-3/input2",
+			"usb-0000:0a:00.3-3/input2",
 		};
 		for (auto device : devices)
 		{
@@ -963,7 +963,7 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		}
 
 		// BUTTON 1 (Default: Screenshot) Paddle + Y
-		assignButtonKey(1, { 184} );
+		assignButtonKey(1, { 184 });
 
 		// BUTTON 2 (Default: QAM) Armory Crate Button Short Press
 		assignButtonKey(2, { 148 });
@@ -983,41 +983,41 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 
 		// BUTTON 7 (Default: Toggle Performance) Armory Crate Button Long Press
 		// This button triggers immediate down/up after holding for ~1s an F17 and then
-    	// released another down/up for F18 on release. We use the F18 "KEY_UP" for release.
+		// released another down/up for F18 on release. We use the F18 "KEY_UP" for release.
 		assignButtonKey(7, { 187 });
 
 		// BUTTON 8 (Default: Mode) Control Center Long Press.
-    	// This event triggers from KEYBOARD_2.
+		// This event triggers from KEYBOARD_2.
 		assignButtonKey(8, { 29, 56, 111 });
 
 		// BUTTON 9 (Default: Toggle Mouse) Paddle + D-Pad DOWN
-    	// This event triggers from KEYBOARD_2.
+		// This event triggers from KEYBOARD_2.
 		assignButtonKey(9, { 1, 29, 42 });
 
 		// BUTTON 10 (Default: ALT+TAB) Paddle + D-Pad LEFT
-    	// This event triggers from KEYBOARD_2.
+		// This event triggers from KEYBOARD_2.
 		assignButtonKey(10, { 32, 125 });
 
 		// BUTTON 11 (Default: KILL) Paddle + D-Pad RIGHT
-    	// This event triggers from KEYBOARD_2.
+		// This event triggers from KEYBOARD_2.
 		assignButtonKey(11, { 15, 125 });
 
 		// BUTTON 12 (Default: Toggle Gyro) Paddle + B
-    	// This event triggers from KEYBOARD_2.
-		assignButtonKey(12, { 49, 125 }); 
+		// This event triggers from KEYBOARD_2.
+		assignButtonKey(12, { 49, 125 });
 	}
 	// ANBERNIC Devices
-	else if (model == "Win600") 
+	else if (model == "Win600")
 	{
-        g_system_type = ANB_GEN1;
-    	BUTTON_DELAY = 0.04;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:02:00.3-5/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		g_system_type = ANB_GEN1;
+		BUTTON_DELAY = 0.04;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:02:00.3-5/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (BUTTON 4 ALT Mode) (Default: Screenshot) Long press KB
 		assignButtonKey(1, { 24, 29, 125 });
@@ -1037,7 +1037,7 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	// AOKZOE Devices
 	else if (model == "AOKZOE A1 AR07")
 	{
-        g_system_type = AOK_GEN1;
+		g_system_type = AOK_GEN1;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1068,15 +1068,15 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	}
 	else if (model == "AOKZOE A1 Pro")
 	{
-        g_system_type = AOK_GEN2;
-    	BUTTON_DELAY = 0.09;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		g_system_type = AOK_GEN2;
+		BUTTON_DELAY = 0.09;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Possible dangerous fan activity!) Short press orange + |||||
 		assignButtonKey(1, { 99, 125 });
@@ -1102,14 +1102,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		model == "AYANEO 2021 Pro" || model == "AYANEO 2021 Pro Retro Power")
 	{
 		g_system_type = AYA_GEN1;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot) WIN button
 		assignButtonKey(1, { 125 });
@@ -1127,14 +1127,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		model == "AYANEO NEXT" || model == "AYANEO NEXT Pro" || model == "AYANEO NEXT Advance")
 	{
 		g_system_type = AYA_GEN2;
-    	BUTTON_DELAY = 0.10;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.10;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 2 (Default: QAM) Small Button
 		assignButtonKey(2, { 40, 133 });
@@ -1147,14 +1147,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "AIR" || model == "AIR Pro")
 	{
 		g_system_type = AYA_GEN3;
-    	BUTTON_DELAY = 0.10;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:04:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.10;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:04:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
 		assignButtonKey(1, { 87, 97, 125 });
@@ -1197,14 +1197,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		if (vendor.find("GenuineIntel") != std::string::npos)
 		{
 			g_system_type = AYA_GEN7; // intel 
-    		BUTTON_DELAY = 0.11;
-    		CAPTURE_CONTROLLER = true;
-    		CAPTURE_KEYBOARD = true;
-    		CAPTURE_POWER = true;
-    		GAMEPAD_ADDRESS = "usb-0000:00:14.0-6/input0";
-    		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+			BUTTON_DELAY = 0.11;
+			CAPTURE_CONTROLLER = true;
+			CAPTURE_KEYBOARD = true;
+			CAPTURE_POWER = true;
+			GAMEPAD_ADDRESS = "usb-0000:00:14.0-6/input0";
+			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 			// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
 			assignButtonKey(1, { 29, 125, 185 });
@@ -1222,13 +1222,13 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		{
 			g_system_type = AYA_GEN5; // amd 
 			BUTTON_DELAY = 0.11;
-    		CAPTURE_CONTROLLER = true;
-    		CAPTURE_KEYBOARD = true;
-    		CAPTURE_POWER = true;
-    		GAMEPAD_ADDRESS = "usb-0000:64:00.3-3/input0";
-    		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+			CAPTURE_CONTROLLER = true;
+			CAPTURE_KEYBOARD = true;
+			CAPTURE_POWER = true;
+			GAMEPAD_ADDRESS = "usb-0000:64:00.3-3/input0";
+			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 			// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
 			assignButtonKey(1, { 29, 125, 185 });
@@ -1241,19 +1241,19 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 
 			// BUTTON 5 (Default: MODE) Big button
 			assignButtonKey(5, { 29, 125, 187 });
-		} 
+		}
 	}
 	else if (model == "AYANEO 2S" || model == "GEEK 1S" || model == "AIR 1S")
 	{
 		g_system_type = AYA_GEN6;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
 		assignButtonKey(1, { 97, 125, 185 });
@@ -1267,18 +1267,18 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 97, 125, 187 });
 	}
-    // Ayn Devices
+	// Ayn Devices
 	else if (model == "Loki Max")
 	{
 		g_system_type = AYN_GEN1;
-    	BUTTON_DELAY = 0.11;
-   		CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:74:00.0-1/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:74:00.0-1/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot) Front lower-left + front lower-right
 		assignButtonKey(1, { 111 });
@@ -1289,14 +1289,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "Loki Zero")
 	{
 		g_system_type = AYN_GEN2;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:04:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:04:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot) Front lower-left + front lower-right
 		assignButtonKey(1, { 111 });
@@ -1307,14 +1307,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "Loki MiniPro")
 	{
 		g_system_type = AYN_GEN3;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:04:00.4-2/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:04:00.4-2/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Default: Screenshot) Front lower-left + front lower-right
 		assignButtonKey(1, { 111 });
@@ -1322,18 +1322,18 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		// BUTTON 2 (Default: QAM) Front lower-right
 		assignButtonKey(2, { 20, 29, 42, 56 });
 	}
-    // Lenovo Devices
+	// Lenovo Devices
 	else if (model == "83E1") // Legion Go
 	{
 		g_system_type = GO_GEN1;
-	    BUTTON_DELAY = 0.2;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:c2:00.3-3/input0";
-    	GAMEPAD_NAME = "Generic X-Box pad";
-    	KEYBOARD_ADDRESS = "usb-0000:c2:00.3-3/input3";
-    	KEYBOARD_NAME = "  Legion Controller for Windows  Keyboard";
+		BUTTON_DELAY = 0.2;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:c2:00.3-3/input0";
+		GAMEPAD_NAME = "Generic X-Box pad";
+		KEYBOARD_ADDRESS = "usb-0000:c2:00.3-3/input3";
+		KEYBOARD_NAME = "  Legion Controller for Windows  Keyboard";
 
 		// Legion + a = QAM
 		assignButtonKey(2, { 29, 56, 111 });
@@ -1344,19 +1344,19 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		// Legion + B = MODE
 		assignButtonKey(5, { 24, 29, 125 });
 	}
-    // GPD Devices
+	// GPD Devices
 	// Have 2 buttons with 3 modes (left, right, both)
 	else if (model == "G1618-03") // Win3
 	{
 		g_system_type = GPD_GEN1;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:00:14.0-7/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "usb-0000:00:14.0-5/input0";
-    	KEYBOARD_NAME = "  Mouse for Windows";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:00:14.0-7/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "usb-0000:00:14.0-5/input0";
+		KEYBOARD_NAME = "  Mouse for Windows";
 
 		// BUTTON 1 (Default: Screenshot)
 		assignButtonKey(1, { 29, 56, 111 });
@@ -1367,16 +1367,16 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "G1619-04") // WinMax2
 	{
 		g_system_type = GPD_GEN2;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:74:00.3-3/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "usb-0000:74:00.3-4/input1";
-    	KEYBOARD_NAME = "  Mouse for Windows";
-//    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";	// for test built-in keyboard
-//    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:74:00.3-3/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "usb-0000:74:00.3-4/input1";
+		KEYBOARD_NAME = "  Mouse for Windows";
+		//    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";	// for test built-in keyboard
+		//    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		LID_SWITCH = "PNP0C0D/button/input0";
 
@@ -1391,14 +1391,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "G1618-04") // Win4
 	{
 		g_system_type = GPD_GEN3;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:73:00.3-4.1/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "usb-0000:73:00.3-4.2/input1";
-    	KEYBOARD_NAME = "  Mouse for Windows";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:73:00.3-4.1/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "usb-0000:73:00.3-4.2/input1";
+		KEYBOARD_NAME = "  Mouse for Windows";
 
 		// BUTTON 1 (Default: Toggle Gyro)
 		assignButtonKey(1, { 119 });
@@ -1409,14 +1409,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "G1617-01") // WinMini
 	{
 		g_system_type = GPD_GEN4;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:63:00.3-5/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
-    	KEYBOARD_NAME = "  Mouse for Windows";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:63:00.3-5/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
+		KEYBOARD_NAME = "  Mouse for Windows";
 
 		LID_SWITCH = "PNP0C0D/button/input0";
 
@@ -1426,21 +1426,21 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 		// BUTTON 2 (Default: QAM)
 		assignButtonKey(2, { 32, 125 });
 	}
-    // ONEXPLAYER Devices
-    // Older BIOS have incomlete DMI data and most models report as "ONE XPLAYER" or "ONEXPLAYER".
+	// ONEXPLAYER Devices
+	// Older BIOS have incomlete DMI data and most models report as "ONE XPLAYER" or "ONEXPLAYER".
 	else if (model == "ONE XPLAYER" || model == "ONEXPLAYER")
 	{
 		if (vendor.find("GenuineIntel") != std::string::npos)
 		{
 			g_system_type = OXP_GEN1;
-    		BUTTON_DELAY = 0.11;
-    		CAPTURE_CONTROLLER = true;
-    		CAPTURE_KEYBOARD = true;
-    		CAPTURE_POWER = true;
-    		GAMEPAD_ADDRESS = "usb-0000:00:14.0-9/input0";
-    		GAMEPAD_NAME = "OneXPlayer Gamepad";
-    		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+			BUTTON_DELAY = 0.11;
+			CAPTURE_CONTROLLER = true;
+			CAPTURE_KEYBOARD = true;
+			CAPTURE_POWER = true;
+			GAMEPAD_ADDRESS = "usb-0000:00:14.0-9/input0";
+			GAMEPAD_NAME = "OneXPlayer Gamepad";
+			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 			// BUTTON 1 (Possible dangerous fan activity!) Short press orange + |||||
 			assignButtonKey(1, { 99, 125 });
@@ -1454,17 +1454,17 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 			// BUTTON 4 (Default: OSK) Short press KB
 			assignButtonKey(4, { 24, 97, 125 });
 		}
-		else 
+		else
 		{
 			g_system_type = OXP_GEN2;
-    		BUTTON_DELAY = 0.11;
-    		CAPTURE_CONTROLLER = true;
-    		CAPTURE_KEYBOARD = true;
-    		CAPTURE_POWER = true;
-    		GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
-    		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+			BUTTON_DELAY = 0.11;
+			CAPTURE_CONTROLLER = true;
+			CAPTURE_KEYBOARD = true;
+			CAPTURE_POWER = true;
+			GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
+			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 			// BUTTON 1 (Possible dangerous fan activity!) Short press orange + |||||
 			assignButtonKey(1, { 99, 125 });
@@ -1485,14 +1485,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "ONEXPLAYER mini A07")
 	{
 		g_system_type = OXP_GEN3;
-    	BUTTON_DELAY = 0.11;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:03:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Possible dangerous fan activity!) Short press orange + |||||
 		assignButtonKey(1, { 99, 125 });
@@ -1515,14 +1515,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "ONEXPLAYER Mini Pro")
 	{
 		g_system_type = OXP_GEN4;
-    	BUTTON_DELAY = 0.09;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:e3:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.09;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:e3:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 (Possible dangerous fan activity!) Short press orange + |||||
 		assignButtonKey(1, { 99, 125 });
@@ -1545,20 +1545,20 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "ONEXPLAYER 2 ARP23")
 	{
 		g_system_type = OXP_GEN5;
-    	BUTTON_DELAY = 0.09;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:74:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.09;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:74:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
-    	// Push volume keys for X1/X2 if they are not in volume mode.
-    	// BUTTON 0 (VOLUP): X1
+		// Push volume keys for X1/X2 if they are not in volume mode.
+		// BUTTON 0 (VOLUP): X1
 		assignButtonKey(13, { 32, 125 });
 
-    	// BUTTON 00 (VOLDOWN): X2
+		// BUTTON 00 (VOLDOWN): X2
 		assignButtonKey(14, { 24, 29, 125 });
 
 		// BUTTON 2 (Default: QAM) Turbo Button
@@ -1567,20 +1567,20 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "ONEXPLAYER 2 PRO ARP23P" || model == "ONEXPLAYER 2 PRO ARP23P EVA-01")
 	{
 		g_system_type = OXP_GEN6;
-    	BUTTON_DELAY = 0.09;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:64:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.09;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:64:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
-    	// Push volume keys for X1/X2 if they are not in volume mode.
-    	// BUTTON 0 (VOLUP): X1
+		// Push volume keys for X1/X2 if they are not in volume mode.
+		// BUTTON 0 (VOLUP): X1
 		assignButtonKey(13, { 32, 125 });
 
-    	// BUTTON 00 (VOLDOWN): X2
+		// BUTTON 00 (VOLDOWN): X2
 		assignButtonKey(14, { 24, 29, 125 });
 
 		// BUTTON 2 (Default: QAM) Turbo Button
@@ -1589,14 +1589,14 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	else if (model == "ONEXPLAYER F1")
 	{
 		g_system_type = OXP_GEN7;
-    	BUTTON_DELAY = 0.09;
-    	CAPTURE_CONTROLLER = true;
-    	CAPTURE_KEYBOARD = true;
-    	CAPTURE_POWER = true;
-    	GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
-    	GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+		BUTTON_DELAY = 0.09;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:c4:00.3-4/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
 
 		// BUTTON 1 Short press orange + turbo
 		assignButtonKey(1, { 99, 125 });
@@ -1618,7 +1618,7 @@ static void id_system(std::string model, std::list<deviceItem> &devices)
 	}
 }
 
-static bool keyIsMatch(std::vector<int> &keys1, std::vector<int> &keys2)
+static bool keyIsMatch(std::vector<int>& keys1, std::vector<int>& keys2)
 {
 	if (keys1.size() > 0 && keys1.size() == keys2.size())
 	{
@@ -1631,7 +1631,7 @@ static bool keyIsMatch(std::vector<int> &keys1, std::vector<int> &keys2)
 	return false;
 }
 
-static int getMatchButton(std::vector<int> &keys)
+static int getMatchButton(std::vector<int>& keys)
 {
 	for (int ch = 0; ch < 2; ch++)
 	{
@@ -1650,39 +1650,39 @@ static std::string g_thermal_mode = "0";
 
 static void toggle_performance()
 {
-    if (g_performance_mode == "--max-performance")
+	if (g_performance_mode == "--max-performance")
 	{
-        g_performance_mode = "--power-saving";
+		g_performance_mode = "--power-saving";
 		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
-        sleepMS(FF_DELAY);
-        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
 	}
-    else
+	else
 	{
-        g_performance_mode = "--max-performance";
-        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
-        sleepMS(FF_DELAY);
-        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
-        sleepMS(FF_DELAY);
-        if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
+		g_performance_mode = "--max-performance";
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
 	}
 
-    std::string ryzenadj_command = "ryzenadj " + g_performance_mode;
-    std::string run = readExeResult(ryzenadj_command.c_str());
+	std::string ryzenadj_command = "ryzenadj " + g_performance_mode;
+	std::string run = readExeResult(ryzenadj_command.c_str());
 	fprintf(g_logStream, "%s\n.", run.c_str());
 
-    if (g_system_type == ALY_GEN1)
+	if (g_system_type == ALY_GEN1)
 	{
-        if (g_thermal_mode == "1") g_thermal_mode = "0";
-        else g_thermal_mode = "1";
+		if (g_thermal_mode == "1") g_thermal_mode = "0";
+		else g_thermal_mode = "1";
 
-        std::string command = "echo " + g_thermal_mode + " > /sys/devices/platform/asus-nb-wmi/throttle_thermal_policy";
+		std::string command = "echo " + g_thermal_mode + " > /sys/devices/platform/asus-nb-wmi/throttle_thermal_policy";
 		run = readExeResult(command.c_str());
 		fprintf(g_logStream, "Thermal mode set to %s -> %s\n.", g_thermal_mode.c_str(), run.c_str());
 	}
 }
 
-static void emit_now(const EventCode *pCode, bool isDown)
+static void emit_now(const EventCode* pCode, bool isDown)
 {
 	if (pCode && pCode != EVENT_NULL)
 	{
@@ -1765,7 +1765,7 @@ static void handle_key_up(int event)
 {
 	auto it = g_button_map.find(event);
 	if (it != g_button_map.end())
-	{		
+	{
 		if (std::find(QUEUED_EVENTS.begin(), QUEUED_EVENTS.end(), it->second) != QUEUED_EVENTS.end())
 		{
 			emit_now(it->second, false);
@@ -1778,16 +1778,16 @@ static std::condition_variable g_event_cond;
 static std::list<int> g_event_list;
 static int g_debug = 0;
 
-static void process_key(evdev *pDev, input_event &seed_event)
+static void process_key(evdev* pDev, input_event& seed_event)
 {
 	if (seed_event.code == KEY_VOLUMEDOWN || seed_event.code == KEY_VOLUMEUP)
-	{		
+	{
 		if (g_ui_device)
 		{
 			g_ui_device->emit_event(seed_event);
 			g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
-		} 
-		return; 
+		}
+		return;
 	}
 
 	std::vector<int> active_keys;
@@ -1818,12 +1818,12 @@ static void process_key(evdev *pDev, input_event &seed_event)
 	}
 }
 
-static int readEvent(evdev **ppDev, input_event *pEvent, const char *log)
+static int readEvent(evdev** ppDev, input_event* pEvent, const char* log)
 {
 	pollfd pfd = { 0, };
 
 	pfd.fd = libevdev_get_fd((*ppDev)->dev);
-   	pfd.events = POLLIN;
+	pfd.events = POLLIN;
 	if (poll(&pfd, 1, 100) >= 0)
 	{
 		int rc = libevdev_next_event((*ppDev)->dev, LIBEVDEV_READ_FLAG_NORMAL, pEvent);
@@ -1858,17 +1858,17 @@ static void capture_controller_events()
 				{
 					g_ui_device->emit_event(event);
 					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
-				} 
+				}
 			}
 		}
 		else
 		{
 			if (!GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
 			{
-				fprintf(g_logStream, "Attempting to grab controller device...'%s' '%s'\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());				
+				fprintf(g_logStream, "Attempting to grab controller device...'%s' '%s'\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());
 				controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
 				g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
-			} 
+			}
 			if (!controller_device) sleepMS(DETECT_DELAY);
 		}
 	}
@@ -1909,7 +1909,7 @@ static void capture_ff_events()
 						upload.request_id = event.value;
 						int err = ioctl(fd, UI_BEGIN_FF_UPLOAD, &upload);
 						auto effect = upload.effect;
-					
+
 						if (ff_effect_id_set.find(effect.id) == ff_effect_id_set.end()) effect.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
 						if (controller_fd >= 0) err = ioctl(controller_fd, EVIOCSFF, &effect);
 						ff_effect_id_set[effect.id] = true;
@@ -1940,7 +1940,7 @@ static void capture_ff_events()
 
 static void capture_keyboard_events()
 {
-	evdev *keyboard_device = NULL;
+	evdev* keyboard_device = NULL;
 
 	while (g_runningLoop == 1)
 	{
@@ -1969,7 +1969,7 @@ static void capture_keyboard_events()
 
 static void capture_keyboard_2_events()
 {
-	evdev *keyboard_2_device = NULL;
+	evdev* keyboard_2_device = NULL;
 
 	while (g_runningLoop == 1)
 	{
@@ -1998,9 +1998,9 @@ static void capture_keyboard_2_events()
 
 static void capture_power_events()
 {
-	evdev *power_device = NULL;
-	evdev *power_device_2 = NULL;
-	evdev *lid_switch = NULL;
+	evdev* power_device = NULL;
+	evdev* power_device_2 = NULL;
+	evdev* lid_switch = NULL;
 
 	while (g_runningLoop == 1)
 	{
@@ -2043,7 +2043,7 @@ static void capture_power_events()
 			{
 				fprintf(g_logStream, "Attempting to grab primary power device... '%s' \n", POWER_BUTTON_PRIMARY.c_str());
 				power_device = grabDevice("Power Button", POWER_BUTTON_PRIMARY);
-			} 
+			}
 			if (!POWER_BUTTON_SECONDARY.empty())
 			{
 				fprintf(g_logStream, "Attempting to grab secondary power device... '%s' \n", POWER_BUTTON_SECONDARY.c_str());
@@ -2055,20 +2055,20 @@ static void capture_power_events()
 				lid_switch = grabDevice("Lid Switch", LID_SWITCH);
 			}
 			if (!power_device && !power_device_2) sleepMS(DETECT_DELAY);
-		}	
+		}
 	}
 	SAFE_DELETE(lid_switch);
 	SAFE_DELETE(power_device_2);
-	SAFE_DELETE(power_device);	
+	SAFE_DELETE(power_device);
 }
 
 int main(int argc, char* argv[])
 {
-    g_logStream = stderr;
+	g_logStream = stderr;
 
 	signal(SIGINT, handle_signal);
 	signal(SIGHUP, handle_signal);
-    signal(SIGTERM, handle_signal);
+	signal(SIGTERM, handle_signal);
 
 	char model[110] = { 0, };
 	readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
@@ -2183,7 +2183,7 @@ int main(int argc, char* argv[])
 					}
 				}
 
-				for (auto &thread : threads)
+				for (auto& thread : threads)
 				{
 					thread->join();
 					SAFE_DELETE(thread);
