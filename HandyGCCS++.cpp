@@ -11,6 +11,12 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
+#include <pthread.h>
+#include <poll.h>
+#include <libevdev-1.0/libevdev/libevdev.h>
+#include <linux/input-event-codes.h>
+#include <linux/input.h>
+#include <linux/uinput.h>
 #include <string>
 #include <initializer_list>
 #include <list>
@@ -21,11 +27,6 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <poll.h>
-#include <libevdev-1.0/libevdev/libevdev.h>
-#include <linux/input-event-codes.h>
-#include <linux/input.h>
-#include <linux/uinput.h>
 
 // https://github.com/spotify/linux/blob/master/include/linux/input.h
 
@@ -115,6 +116,17 @@ static bool fileExists(std::string path)
 	struct stat buffer;
 
 	return (stat(path.c_str(), &buffer) == 0);
+}
+
+static void setMaxScheduling()
+{
+	sched_param params = { };
+	int policy = 0;
+	auto th = pthread_self();	
+
+	pthread_getschedparam(th, &policy, &params);
+	params.sched_priority = sched_get_priority_max(policy);
+	pthread_setschedparam(th, policy, &params);
 }
 
 struct deviceItem
@@ -1871,6 +1883,7 @@ static void capture_controller_events()
 {
 	evdev* controller_device = NULL;
 
+	setMaxScheduling();
 	while (g_runningLoop == 1)
 	{
 		if (controller_device)
