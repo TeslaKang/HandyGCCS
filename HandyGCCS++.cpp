@@ -309,7 +309,6 @@ struct evdev
 	}
 	~evdev()
 	{
-		this->org_path = org_path;
 		if (!org_path.empty() && !new_path.empty()) rename(new_path.c_str(), org_path.c_str());
 		if (dev)
 		{
@@ -598,7 +597,7 @@ struct uinput
 		{
 			uinput_user_dev uidev = { 0, };
 
-			snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, name);
+			strncpy(uidev.name, name, UINPUT_MAX_NAME_SIZE);
 			uidev.id.bustype = bustype;
 			uidev.id.vendor = vendor;
 			uidev.id.product = product;
@@ -905,19 +904,11 @@ static void handle_signal(int sig)
 	g_runningLoop = 0;
 }
 
-enum SystemType
-{
-	NONE, ALY_GEN1, ANB_GEN1, AOK_GEN1, AOK_GEN2,
-	AYA_GEN1, AYA_GEN2, AYA_GEN3, AYA_GEN4, AYA_GEN5, AYA_GEN6, AYA_GEN7, AYA_GEN8,
-	AYN_GEN1, AYN_GEN2, AYN_GEN3, GO_GEN1, GPD_GEN1, GPD_GEN2, GPD_GEN3, GPD_GEN4,
-	OXP_GEN1, OXP_GEN2, OXP_GEN3, OXP_GEN4, OXP_GEN5, OXP_GEN6, OXP_GEN7
-};
-static SystemType g_system_type = NONE;
-
 static double  		BUTTON_DELAY = 0.00;
 static bool			CAPTURE_CONTROLLER = false;
 static bool			CAPTURE_KEYBOARD = false;
 static bool    		CAPTURE_POWER = false;
+static bool			ROG_ALLY_DEVICE = false;
 static std::string	GAMEPAD_ADDRESS = "";
 static std::string	GAMEPAD_NAME = "";
 static std::string	KEYBOARD_ADDRESS = "";
@@ -930,14 +921,15 @@ static std::string	LID_SWITCH = "";
 
 static int DETECT_DELAY = 500;
 
-static void id_system(std::string model, std::list<deviceItem>& devices)
+static bool id_system(std::string model, std::list<deviceItem>& devices)
 {
+	bool ret = true;
 	std::string vendor = get_cpu_vendor();
 
 	// ASUS Devices
 	if (model == "ROG Ally RC71L_RC71L")
 	{
-		g_system_type = ALY_GEN1;
+		ROG_ALLY_DEVICE = true;
 		BUTTON_DELAY = 0.2;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1021,7 +1013,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	// ANBERNIC Devices
 	else if (model == "Win600")
 	{
-		g_system_type = ANB_GEN1;
 		BUTTON_DELAY = 0.04;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1049,7 +1040,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	// AOKZOE Devices
 	else if (model == "AOKZOE A1 AR07")
 	{
-		g_system_type = AOK_GEN1;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1080,7 +1070,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "AOKZOE A1 Pro")
 	{
-		g_system_type = AOK_GEN2;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1113,7 +1102,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	else if (model == "AYA NEO FOUNDER" || model == "AYA NEO 2021" || model == "AYANEO 2021" ||
 		model == "AYANEO 2021 Pro" || model == "AYANEO 2021 Pro Retro Power")
 	{
-		g_system_type = AYA_GEN1;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1138,7 +1126,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	else if (model == "NEXT" || model == "NEXT Pro" || model == "NEXT Advance" ||
 		model == "AYANEO NEXT" || model == "AYANEO NEXT Pro" || model == "AYANEO NEXT Advance")
 	{
-		g_system_type = AYA_GEN2;
 		BUTTON_DELAY = 0.10;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1158,7 +1145,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "AIR" || model == "AIR Pro")
 	{
-		g_system_type = AYA_GEN3;
 		BUTTON_DELAY = 0.10;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1182,7 +1168,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "AYANEO 2" || model == "GEEK")
 	{
-		g_system_type = AYA_GEN4;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1208,7 +1193,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	{
 		if (vendor.find("GenuineIntel") != std::string::npos)
 		{
-			g_system_type = AYA_GEN7; // intel 
 			BUTTON_DELAY = 0.11;
 			CAPTURE_CONTROLLER = true;
 			CAPTURE_KEYBOARD = true;
@@ -1232,7 +1216,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 		}
 		else
 		{
-			g_system_type = AYA_GEN5; // amd 
 			BUTTON_DELAY = 0.11;
 			CAPTURE_CONTROLLER = true;
 			CAPTURE_KEYBOARD = true;
@@ -1257,7 +1240,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "AYANEO 2S" || model == "GEEK 1S" || model == "AIR 1S")
 	{
-		g_system_type = AYA_GEN6;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1281,7 +1263,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "KUN")
 	{
-		g_system_type = AYA_GEN8;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1309,7 +1290,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	// Ayn Devices
 	else if (model == "Loki Max")
 	{
-		g_system_type = AYN_GEN1;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1327,7 +1307,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "Loki Zero")
 	{
-		g_system_type = AYN_GEN2;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1345,7 +1324,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "Loki MiniPro")
 	{
-		g_system_type = AYN_GEN3;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1364,7 +1342,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	// Lenovo Devices
 	else if (model == "83E1") // Legion Go
 	{
-		g_system_type = GO_GEN1;
 		BUTTON_DELAY = 0.2;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1387,7 +1364,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	// Have 2 buttons with 3 modes (left, right, both)
 	else if (model == "G1618-03") // Win3
 	{
-		g_system_type = GPD_GEN1;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1405,7 +1381,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "G1619-04") // WinMax2
 	{
-		g_system_type = GPD_GEN2;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1429,7 +1404,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "G1618-04") // Win4
 	{
-		g_system_type = GPD_GEN3;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1447,7 +1421,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "G1617-01") // WinMini
 	{
-		g_system_type = GPD_GEN4;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1471,7 +1444,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	{
 		if (vendor.find("GenuineIntel") != std::string::npos)
 		{
-			g_system_type = OXP_GEN1;
 			BUTTON_DELAY = 0.11;
 			CAPTURE_CONTROLLER = true;
 			CAPTURE_KEYBOARD = true;
@@ -1495,7 +1467,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 		}
 		else
 		{
-			g_system_type = OXP_GEN2;
 			BUTTON_DELAY = 0.11;
 			CAPTURE_CONTROLLER = true;
 			CAPTURE_KEYBOARD = true;
@@ -1523,7 +1494,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "ONEXPLAYER mini A07")
 	{
-		g_system_type = OXP_GEN3;
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1553,7 +1523,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "ONEXPLAYER Mini Pro")
 	{
-		g_system_type = OXP_GEN4;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1583,7 +1552,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "ONEXPLAYER 2 ARP23")
 	{
-		g_system_type = OXP_GEN5;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1605,7 +1573,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "ONEXPLAYER 2 PRO ARP23P" || model == "ONEXPLAYER 2 PRO ARP23P EVA-01")
 	{
-		g_system_type = OXP_GEN6;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1627,7 +1594,6 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 	}
 	else if (model == "ONEXPLAYER F1")
 	{
-		g_system_type = OXP_GEN7;
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1655,6 +1621,9 @@ static void id_system(std::string model, std::list<deviceItem>& devices)
 		// BUTTON 6 (Default: Launch Chimera) Long press orange
 		assignButtonKey(6, { 34, 125 });
 	}
+	else ret = false;
+
+	return ret;
 }
 
 static bool keyIsMatch(std::vector<int>& keys1, std::vector<int>& keys2)
@@ -1710,7 +1679,7 @@ static void toggle_performance()
 	std::string run = readExeResult(ryzenadj_command.c_str());
 	fprintf(g_logStream, "%s\n.", run.c_str());
 
-	if (g_system_type == ALY_GEN1)
+	if (ROG_ALLY_DEVICE)
 	{
 		if (g_thermal_mode == "1") g_thermal_mode = "0";
 		else g_thermal_mode = "1";
@@ -1870,7 +1839,7 @@ static int readEvent(evdev** ppDev, input_event* pEvent, const char* log)
 		if (rc == LIBEVDEV_READ_STATUS_SYNC) resyncDevice((*ppDev)->dev);
 		else if (rc != LIBEVDEV_READ_STATUS_SUCCESS && rc != -EAGAIN) // error
 		{
-			fprintf(g_logStream, log);
+			fprintf(g_logStream, "%s", log);
 			sleepMS(DETECT_DELAY);
 			SAFE_DELETE(*ppDev);
 		}
@@ -2020,7 +1989,7 @@ static void capture_keyboard_2_events()
 
 			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 			{
-				if (g_system_type == ALY_GEN1) process_key(keyboard_2_device, event);
+				process_key(keyboard_2_device, event);
 			}
 		}
 		else
@@ -2171,8 +2140,7 @@ int main(int argc, char* argv[])
 			std::list<deviceItem> devices;
 			if (getDevices(devices))
 			{
-				id_system(model, devices);
-				if (g_system_type == NONE)
+				if (!id_system(model, devices))
 				{
 					fprintf(g_logStream, "%s is not currently supported by this tool. Open an issue on " \
 						"ub at https://github.ShadowBlip/HandyGCCS if this is a bug. If possible, " \
