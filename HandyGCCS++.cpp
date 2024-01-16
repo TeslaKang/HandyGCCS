@@ -1189,54 +1189,41 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 97, 125, 187 });
 	}
-	else if (model == "AIR Plus")
+	else if (model == "AIR Plus" || model == "SLIDE")
 	{
-		if (vendor.find("GenuineIntel") != std::string::npos)
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";		
+		const char* GAMEPAD_ADDRESS_LIST[] =
 		{
-			BUTTON_DELAY = 0.11;
-			CAPTURE_CONTROLLER = true;
-			CAPTURE_KEYBOARD = true;
-			CAPTURE_POWER = true;
-			GAMEPAD_ADDRESS = "usb-0000:00:14.0-6/input0";
-			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
-
-			// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
-			assignButtonKey(1, { 29, 125, 185 });
-
-			// BUTTON 2 (Default: QAM) Small Button
-			assignButtonKey(2, { 32, 125 });
-
-			// BUTTON 4 (Default: OSK) RC Button
-			assignButtonKey(4, { 29, 125, 186 });
-
-			// BUTTON 5 (Default: MODE) Big button
-			assignButtonKey(5, { 29, 125, 187 });
-		}
-		else
+			"usb-0000:00:14.0-6/input0", // intel plus
+			"usb-0000:64:00.3-3/input0", // amd plus
+			"usb-0000:c4:00.3-3/input0", // slider
+		};
+		for (auto device : devices)
 		{
-			BUTTON_DELAY = 0.11;
-			CAPTURE_CONTROLLER = true;
-			CAPTURE_KEYBOARD = true;
-			CAPTURE_POWER = true;
-			GAMEPAD_ADDRESS = "usb-0000:64:00.3-3/input0";
-			GAMEPAD_NAME = "Microsoft X-Box 360 pad";
-			KEYBOARD_ADDRESS = "isa0060/serio0/input0";
-			KEYBOARD_NAME = "AT Translated Set 2 keyboard";
-
-			// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
-			assignButtonKey(1, { 29, 125, 185 });
-
-			// BUTTON 2 (Default: QAM) Small Button
-			assignButtonKey(2, { 32, 125 });
-
-			// BUTTON 4 (Default: OSK) RC Button
-			assignButtonKey(4, { 29, 125, 186 });
-
-			// BUTTON 5 (Default: MODE) Big button
-			assignButtonKey(5, { 29, 125, 187 });
+			for (int i = 0; i < _countof(GAMEPAD_ADDRESS_LIST); i++)
+			{
+				if (device.phys == GAMEPAD_ADDRESS_LIST[i]) GAMEPAD_ADDRESS = device.phys;
+			}
 		}
+
+		// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
+		assignButtonKey(1, { 29, 125, 185 });
+
+		// BUTTON 2 (Default: QAM) Small Button
+		assignButtonKey(2, { 32, 125 });
+
+		// BUTTON 4 (Default: OSK) RC Button
+		assignButtonKey(4, { 29, 125, 186 });
+
+		// BUTTON 5 (Default: MODE) Big button
+		assignButtonKey(5, { 29, 125, 187 });
+
 	}
 	else if (model == "AYANEO 2S" || model == "GEEK 1S" || model == "AIR 1S")
 	{
@@ -1413,7 +1400,7 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 		KEYBOARD_ADDRESS = "usb-0000:73:00.3-4.2/input1";
 		KEYBOARD_NAME = "  Mouse for Windows";
 
-		// BUTTON 1 (Default: Toggle Gyro)
+		// BUTTON 1 (Default: Screenshot)
 		assignButtonKey(1, { 119 });
 
 		// BUTTON 2 (Default: QAM)
@@ -1432,11 +1419,12 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 
 		LID_SWITCH = "PNP0C0D/button/input0";
 
-		// BUTTON 1 (Default: Toggle Gyro)
+		// BUTTON 1 (Default: Screenshot)
 		assignButtonKey(1, { 119 });
 
 		// BUTTON 2 (Default: QAM)
-		assignButtonKey(2, { 32, 125 });
+		assignButtonKey(2, { 99 });		
+		assignButtonKey(2, { 32, 125 }, 1);
 	}
 	// ONEXPLAYER Devices
 	// Older BIOS have incomlete DMI data and most models report as "ONE XPLAYER" or "ONEXPLAYER".
