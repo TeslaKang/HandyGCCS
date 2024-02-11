@@ -1923,8 +1923,8 @@ static void capture_controller_events()
 				if (event.type == EV_FF || event.type == EV_UINPUT) continue;
 				if (g_ui_device)
 				{
-					if (g_mouse_mode) do_mouse_mode(event);
-					else g_ui_device->emit_event(event);
+					/*if (g_mouse_mode) do_mouse_mode(event);
+					else */g_ui_device->emit_event(event);
 					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 				}
 			}
