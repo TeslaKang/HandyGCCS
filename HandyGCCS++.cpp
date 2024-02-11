@@ -685,8 +685,8 @@ static const EventCode EVENT_OSK_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_WEST
 static const EventCode EVENT_QAM[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_SOUTH}, {0} };
 static const EventCode EVENT_QAM_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_EAST}, {0} };
 static const EventCode EVENT_SCR[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_TR}, {0} };
-static const EventCode EVENT_THUMBL[] = [ { EV_KEY, BTN_THUMBL], {0} };
-static const EventCode EVENT_THUMBR[] = [ { .EV_KEY, BTN_THUMBR], {0} };
+static const EventCode EVENT_THUMBL[] = { {EV_KEY, BTN_THUMBL}, {0} };
+static const EventCode EVENT_THUMBR[] = { {EV_KEY, BTN_THUMBR}, {0} };
 static const EventCode EVENT_TOGGLE_GYRO[] = { {0, 0, ToggleGyro}, {0} };
 static const EventCode EVENT_TOGGLE_MOUSE[] = { {0, 0, ToggleMouseMode}, {0} };
 static const EventCode EVENT_TOGGLE_PERF[] = { {0, 0, Toggle_Performance}, {0} };
@@ -990,7 +990,7 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		// BUTTON 2 (Default: QAM) Armory Crate Button Short Press
 		assignButtonKey(2, { 148 });
 
-		# BUTTON 4 (Default: OSK) Control Center Long Press.
+		// BUTTON 4 (Default: OSK) Control Center Long Press.
 		assignButtonKey(4, { 29, 56, 111 });
 
 		// BUTTON 5 (Default: Mode) Control Center Short Press.
