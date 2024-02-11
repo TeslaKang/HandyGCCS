@@ -946,6 +946,7 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 {
 	bool ret = true;
 	std::string vendor = get_cpu_vendor();
+	std::string AOKZOE_TOGGLE_TURBO = "/sys/devices/platform/oxp-platform/tt_toggle";
 
 	// ASUS Devices
 	if (model == "ROG Ally RC71L" || model == "ROG Ally RC71L_RC71L")
@@ -1032,6 +1033,13 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 	// AOKZOE Devices
 	else if (model == "AOKZOE A1 AR07")
 	{
+		if (fileExists(AOKZOE_TOGGLE_TURBO.c_str()))
+		{
+			std::string run = "echo 1 > " + AOKZOE_TOGGLE_TURBO;
+
+			system(run.c_str());
+		}
+
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
@@ -1062,6 +1070,13 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 	}
 	else if (model == "AOKZOE A1 Pro")
 	{
+		if (fileExists(AOKZOE_TOGGLE_TURBO.c_str()))
+		{
+			std::string run = "echo 1 > " + AOKZOE_TOGGLE_TURBO;
+
+			system(run.c_str());
+		}
+
 		BUTTON_DELAY = 0.09;
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
