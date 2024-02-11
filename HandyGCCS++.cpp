@@ -457,13 +457,20 @@ static int g_EV_KEY[] =
 	KEY_BACK, KEY_FORWARD, KEY_NEXTSONG, KEY_PLAYPAUSE, KEY_PREVIOUSSONG, KEY_STOPCD,
 	KEY_HOMEPAGE, KEY_REFRESH, KEY_F13, KEY_F14, KEY_F15, KEY_SEARCH, KEY_MEDIA,
 	BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, BTN_TL, BTN_TR, BTN_SELECT, BTN_START,
-	BTN_MODE, BTN_THUMBL, BTN_THUMBR
+	BTN_MODE, BTN_THUMBL, BTN_THUMBR,
+	BTN_TRIGGER_HAPPY1, BTN_TRIGGER_HAPPY2,
+	BTN_LEFT, BTN_RIGHT, BTN_MIDDLE,
 };
 
 struct EV_ABS_STRUCT
 {
 	int type;
 	input_absinfo info;
+};
+
+static int g_EV_REL[] = 
+{
+	REL_X, REL_Y
 };
 
 static EV_ABS_STRUCT g_EV_ABS[] =
@@ -604,6 +611,7 @@ struct uinput
 			uidev.id.version = version;
 			uidev.ff_effects_max = 16;
 			for (size_t i = 0; i < _countof(g_EV_KEY); i++) EnableEvent(EV_KEY, g_EV_KEY[i]);
+			for (size_t i = 0; i < _countof(g_EV_REL); i++) EnableEvent(EV_REL, g_EV_REL[i]);
 			for (size_t i = 0; i < _countof(g_EV_ABS); i++)
 			{
 				EnableEvent(EV_ABS, g_EV_ABS[i].type);
@@ -677,6 +685,8 @@ static const EventCode EVENT_OSK_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_WEST
 static const EventCode EVENT_QAM[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_SOUTH}, {0} };
 static const EventCode EVENT_QAM_NES[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_EAST}, {0} };
 static const EventCode EVENT_SCR[] = { {EV_KEY, BTN_MODE}, {EV_KEY, BTN_TR}, {0} };
+static const EventCode EVENT_THUMBL[] = [ { EV_KEY, BTN_THUMBL], {0} };
+static const EventCode EVENT_THUMBR[] = [ { .EV_KEY, BTN_THUMBR], {0} };
 static const EventCode EVENT_TOGGLE_GYRO[] = { {0, 0, ToggleGyro}, {0} };
 static const EventCode EVENT_TOGGLE_MOUSE[] = { {0, 0, ToggleMouseMode}, {0} };
 static const EventCode EVENT_TOGGLE_PERF[] = { {0, 0, Toggle_Performance}, {0} };
@@ -709,6 +719,8 @@ static std::map<std::string, const EventCode*> EVENT_MAP =
 	{ "QAM", EVENT_QAM },
 	{ "QAM_NES", EVENT_QAM_NES },
 	{ "SCR", EVENT_SCR },
+    { "THUMBL", EVENT_THUMBL },
+    { "THUMBR", EVENT_THUMBR },
 	{ "TOGGLE_GYRO", EVENT_TOGGLE_GYRO },
 	{ "TOGGLE_MOUSE", EVENT_TOGGLE_MOUSE },
 	{ "TOGGLE_PERFORMANCE", EVENT_TOGGLE_PERF },
@@ -716,17 +728,27 @@ static std::map<std::string, const EventCode*> EVENT_MAP =
 	{ "VOLDOWN", EVENT_VOLDOWN }
 };
 
-static const std::vector<const EventCode*> INSTANT_EVENTS = { EVENT_MODE, EVENT_OPEN_CHIM, EVENT_TOGGLE_GYRO, EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN };
-static const std::vector<const EventCode*> QUEUED_EVENTS = { EVENT_ALT_TAB, EVENT_ESC, EVENT_KILL, EVENT_OSK, EVENT_OSK_DE, EVENT_OSK_NES, EVENT_QAM, EVENT_QAM_NES, EVENT_SCR };
+static const std::vector<const EventCode*> INSTANT_EVENTS =
+{ 
+	EVENT_MODE, EVENT_OPEN_CHIM, EVENT_TOGGLE_GYRO, EVENT_THUMBL, EVENT_THUMBR, 
+	EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN
+};
+static const std::vector<const EventCode*> QUEUED_EVENTS =
+{
+	EVENT_ALT_TAB, EVENT_ESC, EVENT_KILL, EVENT_OSK, EVENT_OSK_DE,
+	EVENT_OSK_NES, EVENT_QAM, EVENT_QAM_NES, EVENT_SCR
+};
 
 static const char* POWER_ACTION_HIBERNATE = "Hibernate";
 static const char* POWER_ACTION_SHUTDOWN = "Shutdown";
 static const char* POWER_ACTION_SUSPEND = "Suspend";
+static const char* POWER_ACTION_SUSPEND_THEN_HIBERNATE = "Suspend then hibernate";
 static std::map<std::string, const char*> POWER_ACTION_MAP =
 {
-	{ "HIBERNATE", POWER_ACTION_HIBERNATE },
-	{ "SHUTDOWN",  POWER_ACTION_SHUTDOWN },
-	{ "SUSPEND",   POWER_ACTION_SUSPEND }
+	{ "HIBERNATE", 				POWER_ACTION_HIBERNATE },
+	{ "SHUTDOWN",  				POWER_ACTION_SHUTDOWN },
+	{ "SUSPEND",   				POWER_ACTION_SUSPEND },
+	{ "SUSPEND_THEN_HIBERNATE",	POWER_ACTION_SUSPEND_THEN_HIBERNATE },
 };
 
 static std::map<std::string, std::string> g_config;
@@ -783,9 +805,6 @@ static void map_config()
 	map_config("button7", 6);
 	map_config("button8", 7);
 	map_config("button9", 8);
-	map_config("button10", 9);
-	map_config("button11", 10);
-	map_config("button12", 11);
 	map_config("power_button", 0, 1);
 	map_config("lid_switch", 0, 2);
 
@@ -802,11 +821,8 @@ static void set_default_config()
 	g_config["button5"] = "MODE";
 	g_config["button6"] = "OPEN_CHIMERA";
 	g_config["button7"] = "TOGGLE_PERFORMANCE";
-	g_config["button8"] = "MODE";
-	g_config["button9"] = "TOGGLE_MOUSE";
-	g_config["button10"] = "ALT_TAB";
-	g_config["button11"] = "KILL";
-	g_config["button12"] = "TOGGLE_GYRO";
+	g_config["button8"] = "THUMBL";
+	g_config["button9"] = "THUMBR";
 	g_config["power_button"] = "SUSPEND";
 	g_config["lid_switch"] = "SUSPEND";
 	map_config();
@@ -835,6 +851,10 @@ static void do_handle_power_action(const char* pAction)
 	{
 		if (!steam_ifrunning_deckui("steam://longpowerpress")) system("systemctl poweroff");
 	}
+	else if (pAction == POWER_ACTION_SUSPEND_THEN_HIBERNATE)
+	{
+		system("systemctl suspend-then-hibernate");
+	}
 }
 
 static int g_runningLoop = 1;
@@ -855,6 +875,7 @@ static void write_config()
 	if (fp)
 	{
 		fputs("[Button Map]\r\n", fp);
+		fputs("version = 1.2\r\n", fp);
 		for (auto& item : g_config)
 		{
 			fputs((item.first + " = " + item.second + "\r\n").c_str(), fp);
@@ -921,13 +942,13 @@ static std::string	LID_SWITCH = "";
 
 static int DETECT_DELAY = 500;
 
-static bool id_system(std::string model, std::list<deviceItem>& devices)
+static bool id_system(std::string model, std::string board, std::list<deviceItem>& devices)
 {
 	bool ret = true;
 	std::string vendor = get_cpu_vendor();
 
 	// ASUS Devices
-	if (model == "ROG Ally RC71L_RC71L")
+	if (model == "ROG Ally RC71L" || model == "ROG Ally RC71L_RC71L")
 	{
 		ROG_ALLY_DEVICE = true;
 		BUTTON_DELAY = 0.2;
@@ -966,49 +987,20 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 			}
 		}
 
-		// BUTTON 1 (Default: Screenshot) Paddle + Y
-		assignButtonKey(1, { 184 });
-
 		// BUTTON 2 (Default: QAM) Armory Crate Button Short Press
 		assignButtonKey(2, { 148 });
 
-		// BUTTON 3 (Default: ESC) Paddle + X Temp disabled, goes nuts.
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(3, { 25, 125 });
-
-		// BUTTON 4 (Default: OSK) Paddle + D-Pad UP
-		assignButtonKey(4, { 88 });
+		# BUTTON 4 (Default: OSK) Control Center Long Press.
+		assignButtonKey(4, { 29, 56, 111 });
 
 		// BUTTON 5 (Default: Mode) Control Center Short Press.
 		assignButtonKey(5, { 186 });
 
-		// BUTTON 6 (Default: Launch Chimera) Paddle + A
-		assignButtonKey(6, { 68 });
+		// BUTTON 11 (Default: Happy Trigger 1) Left Paddle
+		assignButtonKey(11, { 184 });
 
-		// BUTTON 7 (Default: Toggle Performance) Armory Crate Button Long Press
-		// This button triggers immediate down/up after holding for ~1s an F17 and then
-		// released another down/up for F18 on release. We use the F18 "KEY_UP" for release.
-		assignButtonKey(7, { 187 });
-
-		// BUTTON 8 (Default: Mode) Control Center Long Press.
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(8, { 29, 56, 111 });
-
-		// BUTTON 9 (Default: Toggle Mouse) Paddle + D-Pad DOWN
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(9, { 1, 29, 42 });
-
-		// BUTTON 10 (Default: ALT+TAB) Paddle + D-Pad LEFT
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(10, { 32, 125 });
-
-		// BUTTON 11 (Default: KILL) Paddle + D-Pad RIGHT
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(11, { 15, 125 });
-
-		// BUTTON 12 (Default: Toggle Gyro) Paddle + B
-		// This event triggers from KEYBOARD_2.
-		assignButtonKey(12, { 49, 125 });
+		// BUTTON 4 (Default: Happy Trigger 2) Right Paddle
+		assignButtonKey(12, { 185 });
 	}
 	// ANBERNIC Devices
 	else if (model == "Win600")
@@ -1189,6 +1181,29 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 97, 125, 187 });
 	}
+	else if (model == "AIR Plus" && board == "AB05-Mendocino")
+	{
+		BUTTON_DELAY = 0.11;
+		CAPTURE_CONTROLLER = true;
+		CAPTURE_KEYBOARD = true;
+		CAPTURE_POWER = true;
+		GAMEPAD_ADDRESS = "usb-0000:05:00.0-1/input0";
+		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
+		KEYBOARD_ADDRESS = "isa0060/serio0/input0";
+		KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+
+		// BUTTON 1 (Default: Screenshot/Launch Chiumera) LC Button
+		assignButtonKey(1, { 97, 125, 185 });
+
+		// BUTTON 2 (Default: QAM) Small Button
+		assignButtonKey(2, { 32, 125 });
+
+		// BUTTON 4 (Default: OSK) RC Button
+		assignButtonKey(4, { 97, 125, 186 });
+
+		// BUTTON 5 (Default: MODE) Big button
+		assignButtonKey(5, { 97, 125, 187 });
+	}
 	else if (model == "AIR Plus" || model == "SLIDE")
 	{
 		BUTTON_DELAY = 0.11;
@@ -1202,7 +1217,7 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 		{
 			"usb-0000:00:14.0-6/input0", // intel plus
 			"usb-0000:64:00.3-3/input0", // amd plus
-			"usb-0000:c4:00.3-3/input0", // slider
+			"usb-0000:c4:00.3-3/input0", // slider			
 		};
 		for (auto device : devices)
 		{
@@ -1223,9 +1238,8 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 29, 125, 187 });
-
 	}
-	else if (model == "AYANEO 2S" || model == "GEEK 1S" || model == "AIR 1S")
+	else if (model == "AYANEO 2S" || model == "GEEK 1S" || model == "AIR 1S" || model == "AIR 1S Limited")
 	{
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
@@ -1423,7 +1437,7 @@ static bool id_system(std::string model, std::list<deviceItem>& devices)
 		assignButtonKey(1, { 119 });
 
 		// BUTTON 2 (Default: QAM)
-		assignButtonKey(2, { 99 });		
+		assignButtonKey(2, { 99 });
 		assignButtonKey(2, { 32, 125 }, 1);
 	}
 	// ONEXPLAYER Devices
@@ -1641,6 +1655,66 @@ static int getMatchButton(std::vector<int>& keys)
 
 static int FF_DELAY = 200;
 static int g_controller_fd = -1;
+
+static void do_rumble_effect(bool on)
+{
+	if (on)
+	{
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
+	}
+	else
+	{
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		sleepMS(FF_DELAY);
+		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+	}
+}
+
+static bool g_mouse_mode = true;
+
+static void toggle_mouse_mode()
+{
+	g_mouse_mode = !g_mouse_mode;
+	do_rumble_effect(g_mouse_mode);
+}
+
+static void do_mouse_mode(input_event stickEvent)
+{
+	if (g_ui_device)
+	{
+		input_event mouseEvent = { 0, };
+
+		if (EV_ABS == stickEvent.type)
+		{
+			static int oldAbsX = 0;
+			static int oldAbsY = 0;
+
+			if (ABS_RX == stickEvent.code) oldAbsX = stickEvent.value;
+			if (ABS_RY == stickEvent.code) oldAbsY = stickEvent.value;
+
+			if (abs(oldAbsX) > abs(oldAbsY) && abs(oldAbsX) > 1000)
+			{
+				mouseEvent.type = EV_REL;
+				mouseEvent.code = REL_X;
+				mouseEvent.value = oldAbsX < 0 ? -2 : 2;
+				g_ui_device->emit_event(mouseEvent);
+			}
+			if (abs(oldAbsY) > abs(oldAbsX) && abs(oldAbsY) > 1000)
+			{
+				mouseEvent.type = EV_REL;
+				mouseEvent.code = REL_Y;
+				mouseEvent.value = oldAbsY < 0 ? -2 : 2;
+				g_ui_device->emit_event(mouseEvent);
+			}
+//			fprintf(g_logStream, "do_mouse_mode : %d %d    %d %d  %d %d \n, ", oldAbsX, oldAbsY, stickEvent.code, ABS_RX, ABS_RY, mouseEvent.value);
+		}
+	}
+}
+
 static std::string g_performance_mode = "--power-saving";
 static std::string g_thermal_mode = "0";
 
@@ -1649,18 +1723,12 @@ static void toggle_performance()
 	if (g_performance_mode == "--max-performance")
 	{
 		g_performance_mode = "--power-saving";
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
-		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		do_rumble_effect(false);
 	}
 	else
 	{
 		g_performance_mode = "--max-performance";
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
-		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
-		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
+		do_rumble_effect(true);
 	}
 
 	std::string ryzenadj_command = "ryzenadj " + g_performance_mode;
@@ -1696,13 +1764,15 @@ static void emit_now(const EventCode* pCode, bool isDown)
 			else if (pCode->cmd == ToggleMouseMode)
 			{
 				fprintf(g_logStream, "Toggle Mouse Mode is not currently enabled\n.");
+				toggle_mouse_mode();
 			}
 			else if (pCode->cmd == Toggle_Performance)
 			{
 				fprintf(g_logStream, "Toggle Performance\n.");
 				toggle_performance();
 			}
-			else if (pCode->cmd == POWER_ACTION_HIBERNATE || pCode->cmd == POWER_ACTION_SHUTDOWN || pCode->cmd == POWER_ACTION_SUSPEND)
+			else if (pCode->cmd == POWER_ACTION_HIBERNATE || pCode->cmd == POWER_ACTION_SHUTDOWN || 
+				pCode->cmd == POWER_ACTION_SUSPEND || pCode->cmd == POWER_ACTION_SUSPEND_THEN_HIBERNATE)
 			{
 				fprintf(g_logStream, "Power mode %s set to button action. Check your configuration file.\n", pCode->cmd);
 			}
@@ -1853,7 +1923,8 @@ static void capture_controller_events()
 				if (event.type == EV_FF || event.type == EV_UINPUT) continue;
 				if (g_ui_device)
 				{
-					g_ui_device->emit_event(event);
+					if (g_mouse_mode) do_mouse_mode(event);
+					else g_ui_device->emit_event(event);
 					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 				}
 			}
@@ -2070,6 +2141,9 @@ int main(int argc, char* argv[])
 	char model[110] = { 0, };
 	readFileContent("/sys/devices/virtual/dmi/id/product_name", model, 100);
 
+	char board[110] = { 0, };
+	readFileContent("/sys/devices/virtual/dmi/id/board_name", board, 100);
+
 	if (argc > 1)
 	{
 		std::list<deviceItem> devices;
@@ -2128,7 +2202,7 @@ int main(int argc, char* argv[])
 			std::list<deviceItem> devices;
 			if (getDevices(devices))
 			{
-				if (!id_system(model, devices))
+				if (!id_system(model, board, devices))
 				{
 					fprintf(g_logStream, "%s is not currently supported by this tool. Open an issue on " \
 						"ub at https://github.ShadowBlip/HandyGCCS if this is a bug. If possible, " \
