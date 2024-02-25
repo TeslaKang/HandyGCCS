@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <poll.h>
+#include <time.h>
 #include <libevdev-1.0/libevdev/libevdev.h>
 #include <linux/input-event-codes.h>
 #include <linux/input.h>
@@ -1677,55 +1678,149 @@ static void do_rumble_effect(bool on)
 	{
 		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
 		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
-		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 75, 1000, 0);
 	}
 	else
 	{
 		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
 		sleepMS(FF_DELAY);
 		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		sleepMS(FF_DELAY);
 	}
 }
 
-static bool g_mouse_mode = true;
+static bool g_mouseMode = false;
 
 static void toggle_mouse_mode()
 {
-	g_mouse_mode = !g_mouse_mode;
-	do_rumble_effect(g_mouse_mode);
+	g_mouseMode = !g_mouseMode;
+	do_rumble_effect(g_mouseMode);
+}
+
+static std::thread *g_mouseThread = NULL;
+static std::mutex g_mouseMutex;
+static std::condition_variable g_mouseCond;
+
+static int getTickCount()
+{
+	static timespec old;
+	static bool init = false;
+	if (!init) 
+	{		
+		clock_gettime(CLOCK_MONOTONIC, &old);
+		init = true;
+	}
+
+	timespec now;	
+	clock_gettime(CLOCK_MONOTONIC, &now);
+
+	long time = 1000000000 * (now.tv_sec - old.tv_sec) + (now.tv_nsec - old.tv_nsec);
+	return (int)(time / 1000000);
+}
+
+static int g_oldAbsX = 0;
+static int g_oldAbsY = 0;
+static int g_btnSelectTick = 0;
+static int g_btnStartTick = 0;
+static bool g_ltDown = false;
+static bool g_rtDown = false;
+static void sendMouseEvent()
+{
+	int tickAbsX = 0;
+	int tickAbsY = 0;
+
+	while (g_mouseThread && g_runningLoop)
+	{
+		if (g_btnSelectTick && g_btnStartTick && getTickCount() - g_btnSelectTick > 2000 && getTickCount() - g_btnStartTick > 2000)
+		{
+			g_btnSelectTick = 0;
+			g_btnStartTick = 0;
+			toggle_mouse_mode();
+		}
+		{
+			std::unique_lock<std::mutex> lock(g_mouseMutex);
+
+			g_mouseCond.wait_for(lock, std::chrono::milliseconds(g_mouseMode ? 5 : 30));
+		}
+		if (g_mouseMode && g_ui_device)
+		{
+			int oldAbsX = g_oldAbsX;
+			int oldAbsY = g_oldAbsY;
+
+			if (g_ltDown)
+			{
+				tickAbsX = 0;
+				tickAbsY = 0;
+			}
+			if (g_rtDown)
+			{
+				tickAbsX = 1;
+				tickAbsY = 1;
+			} 
+
+			// move cursor
+			if (abs(oldAbsX) > 4000)
+			{
+				int mul = 5;
+
+				if (tickAbsX == 0) tickAbsX = getTickCount();
+				if (getTickCount() - tickAbsX < 200) mul = 1;
+				else if (getTickCount() - tickAbsX < 400) mul = 2;
+				else if (getTickCount() - tickAbsX < 600) mul = 3;
+				else if (getTickCount() - tickAbsX < 800) mul = 4;
+
+				input_event mouseEvent = { 0, };
+				mouseEvent.type = EV_REL;
+				mouseEvent.code = REL_X;
+				mouseEvent.value = (oldAbsX < 0 ? -1 : 1) * mul;
+				g_ui_device->emit_event(mouseEvent);
+				g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+			}
+			else tickAbsX = 0;
+
+			if (abs(oldAbsY) > 4000)
+			{
+				int mul = 5;
+
+				if (tickAbsY == 0) tickAbsY = getTickCount();
+				if (getTickCount() - tickAbsY < 200) mul = 1;
+				else if (getTickCount() - tickAbsY < 400) mul = 2;
+				else if (getTickCount() - tickAbsY < 600) mul = 3;
+				else if (getTickCount() - tickAbsY < 800) mul = 4;
+
+				input_event mouseEvent = { 0, };
+				mouseEvent.type = EV_REL;
+				mouseEvent.code = REL_Y;
+				mouseEvent.value = (oldAbsY < 0 ? -1 : 1) * mul;
+				g_ui_device->emit_event(mouseEvent);
+				g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+			}
+			else tickAbsY = 0;
+		}
+	}
 }
 
 static void do_mouse_mode(input_event stickEvent)
 {
-	if (g_ui_device)
+	if (EV_ABS == stickEvent.type)
 	{
-		input_event mouseEvent = { 0, };
-
-		if (EV_ABS == stickEvent.type)
+		if (!g_mouseThread) g_mouseThread = new std::thread(sendMouseEvent);
 		{
-			static int oldAbsX = 0;
-			static int oldAbsY = 0;
-
-			if (ABS_RX == stickEvent.code) oldAbsX = stickEvent.value;
-			if (ABS_RY == stickEvent.code) oldAbsY = stickEvent.value;
-
-			if (abs(oldAbsX) > abs(oldAbsY) && abs(oldAbsX) > 1000)
-			{
-				mouseEvent.type = EV_REL;
-				mouseEvent.code = REL_X;
-				mouseEvent.value = oldAbsX < 0 ? -2 : 2;
-				g_ui_device->emit_event(mouseEvent);
-			}
-			if (abs(oldAbsY) > abs(oldAbsX) && abs(oldAbsY) > 1000)
-			{
-				mouseEvent.type = EV_REL;
-				mouseEvent.code = REL_Y;
-				mouseEvent.value = oldAbsY < 0 ? -2 : 2;
-				g_ui_device->emit_event(mouseEvent);
-			}
-//			fprintf(g_logStream, "do_mouse_mode : %d %d    %d %d  %d %d \n, ", oldAbsX, oldAbsY, stickEvent.code, ABS_RX, ABS_RY, mouseEvent.value);
+			if (ABS_RX == stickEvent.code) g_oldAbsX = stickEvent.value;
+			else if (ABS_RY == stickEvent.code) g_oldAbsY = stickEvent.value;
+			else if (ABS_RZ == stickEvent.code) g_rtDown = stickEvent.value >= 200; // rt
+			else if (ABS_Z == stickEvent.code) g_ltDown = stickEvent.value >= 200; // lt
+		}
+	}
+	else if (EV_KEY == stickEvent.type)
+	{
+		if ((BTN_TL == stickEvent.code || BTN_TR == stickEvent.code) && g_ui_device) // lb/lr
+		{
+			input_event mouseEvent = { 0 };
+			mouseEvent.type = EV_KEY;
+			mouseEvent.code = BTN_TL == stickEvent.code ? BTN_LEFT : BTN_RIGHT;
+			mouseEvent.value = stickEvent.value;
+			g_ui_device->emit_event(mouseEvent);
+			g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 		}
 	}
 }
@@ -1778,7 +1873,7 @@ static void emit_now(const EventCode* pCode, bool isDown)
 			}
 			else if (pCode->cmd == ToggleMouseMode)
 			{
-				fprintf(g_logStream, "Toggle Mouse Mode is not currently enabled\n.");
+				fprintf(g_logStream, "Toggle Mouse Mode\n.");
 				toggle_mouse_mode();
 			}
 			else if (pCode->cmd == Toggle_Performance)
@@ -1938,8 +2033,31 @@ static void capture_controller_events()
 				if (event.type == EV_FF || event.type == EV_UINPUT) continue;
 				if (g_ui_device)
 				{
-					/*if (g_mouse_mode) do_mouse_mode(event);
-					else */g_ui_device->emit_event(event);
+					if (EV_KEY == event.type)
+					{
+						if (event.code == BTN_SELECT)
+						{
+							if (event.value == 0) g_btnSelectTick = 0;
+							else
+							{
+								if (g_btnSelectTick == 0) g_btnSelectTick = getTickCount();
+							}
+						}
+						else if (event.code == BTN_START)
+						{
+							if (event.value == 0) g_btnStartTick = 0;
+							else
+							{
+								if (g_btnStartTick == 0) g_btnStartTick = getTickCount();
+							}
+						}
+					}
+					if (g_btnSelectTick && g_btnStartTick)
+					{
+						if (!g_mouseThread) g_mouseThread = new std::thread(sendMouseEvent);
+					}
+					if (g_mouseMode) do_mouse_mode(event);
+					else g_ui_device->emit_event(event);
 					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 				}
 			}
@@ -2147,6 +2265,7 @@ static void capture_power_events()
 
 int main(int argc, char* argv[])
 {
+	getTickCount();
 	g_logStream = stderr;
 
 	signal(SIGINT, handle_signal);
@@ -2286,6 +2405,15 @@ int main(int argc, char* argv[])
 				ret = -1;
 				break;
 			}
+		}
+
+		if (g_mouseThread)
+		{
+			auto old = g_mouseThread;
+
+			g_mouseThread = NULL;
+			old->join();
+			SAFE_DELETE(old);
 		}
 	}
 	else
