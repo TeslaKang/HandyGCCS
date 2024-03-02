@@ -1689,11 +1689,29 @@ static void do_rumble_effect(bool on)
 }
 
 static bool g_mouseMode = false;
-
-static void toggle_mouse_mode()
+static void toggle_mouse_mode(bool doRumble = true)
 {
 	g_mouseMode = !g_mouseMode;
-	do_rumble_effect(g_mouseMode);
+	if (doRumble) do_rumble_effect(g_mouseMode);
+}
+
+#define FLAG_KEY_SELECT 	1
+#define FLAG_KEY_START 		2
+
+static int g_setMouseMode = 0;
+static void set_mouse_mode()
+{
+	g_setMouseMode = FLAG_KEY_SELECT | FLAG_KEY_START;
+	do_rumble_effect(g_setMouseMode);
+}
+
+static void reset_mouse_mode(int flag)
+{
+	if (g_setMouseMode & flag)
+	{
+		g_setMouseMode &= ~flag;
+		if (g_setMouseMode == 0) toggle_mouse_mode(false);
+	}
 }
 
 static std::thread *g_mouseThread = NULL;
@@ -1734,7 +1752,7 @@ static void sendMouseEvent()
 		{
 			g_btnSelectTick = 0;
 			g_btnStartTick = 0;
-			toggle_mouse_mode();
+			set_mouse_mode();
 		}
 		{
 			std::unique_lock<std::mutex> lock(g_mouseMutex);
@@ -1758,6 +1776,7 @@ static void sendMouseEvent()
 			} 
 
 			// move cursor
+			bool sendSync = false;
 			if (abs(oldAbsX) > 4000)
 			{
 				int mul = 5;
@@ -1768,12 +1787,8 @@ static void sendMouseEvent()
 				else if (getTickCount() - tickAbsX < 600) mul = 3;
 				else if (getTickCount() - tickAbsX < 800) mul = 4;
 
-				input_event mouseEvent = { 0, };
-				mouseEvent.type = EV_REL;
-				mouseEvent.code = REL_X;
-				mouseEvent.value = (oldAbsX < 0 ? -1 : 1) * mul;
-				g_ui_device->emit_event(mouseEvent);
-				g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+				g_ui_device->emit_event(EV_REL, REL_X, (oldAbsX < 0 ? -1 : 1) * mul);
+				sendSync = true;
 			}
 			else tickAbsX = 0;
 
@@ -1787,14 +1802,12 @@ static void sendMouseEvent()
 				else if (getTickCount() - tickAbsY < 600) mul = 3;
 				else if (getTickCount() - tickAbsY < 800) mul = 4;
 
-				input_event mouseEvent = { 0, };
-				mouseEvent.type = EV_REL;
-				mouseEvent.code = REL_Y;
-				mouseEvent.value = (oldAbsY < 0 ? -1 : 1) * mul;
-				g_ui_device->emit_event(mouseEvent);
-				g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+				g_ui_device->emit_event(EV_REL, REL_Y, (oldAbsY < 0 ? -1 : 1) * mul);
+				sendSync = true;
 			}
 			else tickAbsY = 0;
+
+			if (sendSync) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 		}
 	}
 }
@@ -1815,11 +1828,12 @@ static void do_mouse_mode(input_event stickEvent)
 	{
 		if ((BTN_TL == stickEvent.code || BTN_TR == stickEvent.code) && g_ui_device) // lb/lr
 		{
-			input_event mouseEvent = { 0 };
-			mouseEvent.type = EV_KEY;
-			mouseEvent.code = BTN_TL == stickEvent.code ? BTN_LEFT : BTN_RIGHT;
-			mouseEvent.value = stickEvent.value;
-			g_ui_device->emit_event(mouseEvent);
+			g_ui_device->emit_event(EV_KEY, BTN_TL == stickEvent.code ? BTN_LEFT : BTN_RIGHT, stickEvent.value);
+
+			g_ui_device->emit_event(EV_REL, REL_X, 0);
+
+			g_ui_device->emit_event(EV_REL, REL_Y, 0);
+
 			g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 		}
 	}
@@ -2033,11 +2047,21 @@ static void capture_controller_events()
 				if (event.type == EV_FF || event.type == EV_UINPUT) continue;
 				if (g_ui_device)
 				{
+					if (g_mouseMode) do_mouse_mode(event);
+					else 
+					{
+						g_ui_device->emit_event(event);
+						if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
+					}
 					if (EV_KEY == event.type)
 					{
 						if (event.code == BTN_SELECT)
 						{
-							if (event.value == 0) g_btnSelectTick = 0;
+							if (event.value == 0)
+							{
+								g_btnSelectTick = 0;
+								reset_mouse_mode(FLAG_KEY_SELECT);
+							} 
 							else
 							{
 								if (g_btnSelectTick == 0) g_btnSelectTick = getTickCount();
@@ -2045,7 +2069,11 @@ static void capture_controller_events()
 						}
 						else if (event.code == BTN_START)
 						{
-							if (event.value == 0) g_btnStartTick = 0;
+							if (event.value == 0)
+							{
+								g_btnStartTick = 0;
+								reset_mouse_mode(FLAG_KEY_START);
+							}
 							else
 							{
 								if (g_btnStartTick == 0) g_btnStartTick = getTickCount();
@@ -2056,9 +2084,6 @@ static void capture_controller_events()
 					{
 						if (!g_mouseThread) g_mouseThread = new std::thread(sendMouseEvent);
 					}
-					if (g_mouseMode) do_mouse_mode(event);
-					else g_ui_device->emit_event(event);
-					if (event.type != EV_SYN) g_ui_device->emit_event(EV_SYN, SYN_REPORT, 0);
 				}
 			}
 		}
