@@ -1442,12 +1442,31 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		CAPTURE_CONTROLLER = true;
 		CAPTURE_KEYBOARD = true;
 		CAPTURE_POWER = true;
-		GAMEPAD_ADDRESS = "usb-0000:63:00.3-5/input0";
+		GAMEPAD_ADDRESS = "usb-0000:63:00.3-5/input0"; 
 		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
 		KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
 		KEYBOARD_NAME = "  Mouse for Windows";
 
 		LID_SWITCH = "PNP0C0D/button/input0";
+
+		const char* GAMEPAD_ADDRESS_LIST[] =
+		{
+			"usb-0000:63:00.3-5/input0",	// 7840U
+			"usb-0000:c3:00.3-5/input0",	// 8840U
+		};
+		const char* KEYBOARD_ADDRESS_LIST[] =
+		{
+			"usb-0000:63:00.3-3/input1",	// 7840U	
+			"usb-0000:c3:00.3-3/input1",	// 8840U
+		};
+		for (auto device : devices)
+		{
+			for (int i = 0; i < _countof(GAMEPAD_ADDRESS_LIST); i++)
+			{
+				if (device.phys == GAMEPAD_ADDRESS_LIST[i]) GAMEPAD_ADDRESS = device.phys;
+				if (device.phys == KEYBOARD_ADDRESS_LIST[i]) KEYBOARD_ADDRESS = device.phys;
+			}
+		}
 
 		// BUTTON 1 (Default: Screenshot)
 		assignButtonKey(1, { 119 });
