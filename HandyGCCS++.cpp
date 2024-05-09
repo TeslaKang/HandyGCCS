@@ -1255,7 +1255,7 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 29, 125, 187 });
 	}
-	else if (model == "AYANEO 2S" || model == "AYANEO FLIP KB" || model == "AYANEO FLIP DS" || model == "GEEK 1S" || model == "AIR 1S" || model == "AIR 1S Limited")
+	else if (model == "AYANEO 2S" || model == "FLIP KB" || model == "FLIP DS" || model == "GEEK 1S" || model == "AIR 1S" || model == "AIR 1S Limited")
 	{
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
