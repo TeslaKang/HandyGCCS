@@ -192,6 +192,8 @@ static bool launch_chimera()
 
 static void get_user()
 {
+	int count = 0;
+
 	while (1)
 	{
 		std::string user = readExeResult("who | awk '{print $1}' | sort | head -1");
@@ -200,11 +202,17 @@ static void get_user()
 		{
 			trim(user);
 			USER = user;
-			HOME_PATH = "/home/" + user;
 			break;
 		}
 		sleep(1);
+        count++;
+        if (count > 3)
+		{
+            USER = "deck";
+			break;
+		}
 	}
+	HOME_PATH = "/home/" + USER;	
 }
 
 static void restore_hidden()
