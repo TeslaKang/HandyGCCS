@@ -342,7 +342,7 @@ struct evdev
 
 				if (ret >= 0)
 				{
-					for (int i = 0; i <= KEY_MAX; i++)
+					for (int i = 2; i <= KEY_MAX; i++)
 					{
 						if (test_bit(bytes, i))
 						{
@@ -1182,7 +1182,7 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		// BUTTON 5 (Default: MODE) Big button
 		assignButtonKey(5, { 88, 97, 125 });
 	}
-	else if (model == "AYANEO 2" || model == "GEEK")
+	else if (model == "AYANEO 2" || model == "GEEK" || model == "AYANEO 2S" || model == "GEEK 1S")
 	{
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
