@@ -1444,7 +1444,8 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		// BUTTON 2 (Default: QAM)
 		assignButtonKey(2, { 99 });
 	}
-	else if (model == "G1617-01") // WinMini
+	else if (model == "G1617-01" || // WinMini 7840U/8840U
+		model == "G1617-02") // // WinMini HX370
 	{
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
@@ -1461,11 +1462,13 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		{
 			"usb-0000:63:00.3-5/input0",	// 7840U
 			"usb-0000:c3:00.3-5/input0",	// 8840U
+			"usb-0000:c6:00.0-3.1/input0",	// HX370
 		};
 		const char* KEYBOARD_ADDRESS_LIST[] =
 		{
 			"usb-0000:63:00.3-3/input1",	// 7840U	
 			"usb-0000:c3:00.3-3/input1",	// 8840U
+			"usb-0000:c6:00.0-3.2/input0",	// HX370
 		};
 		for (auto device : devices)
 		{
