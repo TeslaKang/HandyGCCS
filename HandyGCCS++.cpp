@@ -740,12 +740,12 @@ static std::map<std::string, const EventCode*> EVENT_MAP =
 static const std::vector<const EventCode*> INSTANT_EVENTS =
 { 
 	EVENT_MODE, EVENT_OPEN_CHIM, EVENT_TOGGLE_GYRO, EVENT_THUMBL, EVENT_THUMBR, 
-	EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN
+	EVENT_TOGGLE_MOUSE, EVENT_TOGGLE_PERF, EVENT_VOLUP, EVENT_VOLDOWN, EVENT_QAM
 };
 static const std::vector<const EventCode*> QUEUED_EVENTS =
 {
 	EVENT_ALT_TAB, EVENT_ESC, EVENT_KILL, EVENT_OSK, EVENT_OSK_DE,
-	EVENT_OSK_NES, EVENT_QAM, EVENT_QAM_NES, EVENT_SCR
+	EVENT_OSK_NES, EVENT_QAM_NES, EVENT_SCR
 };
 
 static const char* POWER_ACTION_HIBERNATE = "Hibernate";
@@ -1968,7 +1968,7 @@ static void handle_key_down(int event)
 		if (std::find(INSTANT_EVENTS.begin(), INSTANT_EVENTS.end(), it->second) != INSTANT_EVENTS.end())
 		{
 			emit_now(it->second, true);
-			sleepMS(100);
+			sleepMS(150);
 			emit_now(it->second, false);
 		}
 		else if (std::find(QUEUED_EVENTS.begin(), QUEUED_EVENTS.end(), it->second) != QUEUED_EVENTS.end())
