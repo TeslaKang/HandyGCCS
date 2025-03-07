@@ -867,7 +867,7 @@ static void do_handle_power_action(const char* pAction)
 }
 
 static int g_runningLoop = 1;
-const char* g_pPowerAction = NULL;
+static const char* g_pPowerAction = NULL;
 static void handle_power_action(const char* pAction)
 {
 	g_pPowerAction = pAction;
@@ -934,11 +934,11 @@ static void handle_signal(int sig)
 	g_runningLoop = 0;
 }
 
-static double  		BUTTON_DELAY = 0.00;
-static bool			CAPTURE_CONTROLLER = false;
-static bool			CAPTURE_KEYBOARD = false;
-static bool    		CAPTURE_POWER = false;
-static bool			ROG_ALLY_DEVICE = false;
+static double BUTTON_DELAY = 0.00;
+static bool	CAPTURE_CONTROLLER = false;
+static bool	CAPTURE_KEYBOARD = false;
+static bool CAPTURE_POWER = false;
+static bool ROG_ALLY_DEVICE = false;
 static std::string	GAMEPAD_ADDRESS = "";
 static std::string	GAMEPAD_NAME = "";
 static std::string	KEYBOARD_ADDRESS = "";
@@ -2063,6 +2063,7 @@ static int readEvent(evdev** ppDev, input_event* pEvent, const char* log)
 static void capture_controller_events()
 {
 	evdev* controller_device = NULL;
+	int tryCnt = 0;
 
 	setMaxScheduling();
 	while (g_runningLoop == 1)
@@ -2124,6 +2125,12 @@ static void capture_controller_events()
 				fprintf(g_logStream, "Attempting to grab controller device...'%s' '%s'\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());
 				controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
 				g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
+				if (g_controller_fd == -1) tryCnt++;
+				if (tryCnt >= 3)
+				{
+					g_runningLoop = 2;
+					tryCnt = 0;
+				}
 			}
 			if (!controller_device) sleepMS(DETECT_DELAY);
 		}
@@ -2388,6 +2395,8 @@ int main(int argc, char* argv[])
 		{
 			g_runningLoop = 1;
 
+			fprintf(g_logStream, "Check device and start!!\n");
+			restore_hidden();
 			std::list<deviceItem> devices;
 			if (getDevices(devices))
 			{
@@ -2477,5 +2486,7 @@ int main(int argc, char* argv[])
 		ret = -1;
 	}
 	SAFE_DELETE(g_ui_device);
+
+	restore_hidden();
 	return ret;
 }
