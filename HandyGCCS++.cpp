@@ -871,7 +871,7 @@ static const char* g_pPowerAction = NULL;
 static void handle_power_action(const char* pAction)
 {
 	g_pPowerAction = pAction;
-	g_runningLoop = 2;
+	if (g_runningLoop) g_runningLoop = 2;
 }
 
 static const char* CONFIG_DIR = "/etc/handygccs/";
@@ -2128,7 +2128,7 @@ static void capture_controller_events()
 				if (g_controller_fd == -1) tryCnt++;
 				if (tryCnt >= 3)
 				{
-					g_runningLoop = 2;
+					if (g_runningLoop) g_runningLoop = 2;
 					tryCnt = 0;
 				}
 			}
