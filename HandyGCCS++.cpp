@@ -1404,7 +1404,7 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		// BUTTON 2 (Default: QAM)
 		assignButtonKey(2, { 1 });
 	}
-	else if (model == "G1619-04") // WinMax2
+	else if (model == "G1619-04" || model == "G1619-05") // WinMax2
 	{
 		BUTTON_DELAY = 0.11;
 		CAPTURE_CONTROLLER = true;
@@ -2000,7 +2000,7 @@ static int g_debug = 0;
 
 static void process_key(evdev* pDev, input_event& seed_event)
 {
-	if (seed_event.code == KEY_VOLUMEDOWN || seed_event.code == KEY_VOLUMEUP)
+	if (seed_event.code == KEY_VOLUMEDOWN || seed_event.code == KEY_VOLUMEUP || seed_event.code == 4 || seed_event.code == 0)
 	{
 		if (g_ui_device)
 		{
