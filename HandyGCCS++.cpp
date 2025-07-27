@@ -1480,10 +1480,10 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		}
 
 		// BUTTON 1 (Default: Screenshot)
-		assignButtonKey(1, { 119 });
+		assignButtonKey(1, { 99 });
 
 		// BUTTON 2 (Default: QAM)
-		assignButtonKey(2, { 99 });
+		assignButtonKey(2, { 119 });		
 		assignButtonKey(2, { 32, 125 }, 1);
 	}
 	// ONEXPLAYER Devices
