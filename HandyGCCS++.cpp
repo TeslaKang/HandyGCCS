@@ -1414,8 +1414,8 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
 		KEYBOARD_ADDRESS = "usb-0000:74:00.3-4/input1";
 		KEYBOARD_NAME = "  Mouse for Windows";
-		//    	KEYBOARD_ADDRESS = "isa0060/serio0/input0";	// for test built-in keyboard
-		//    	KEYBOARD_NAME = "AT Translated Set 2 keyboard";
+//    	KEYBOARD_2_DDRESS = "isa0060/serio0/input0";	// for test built-in keyboard
+//    	KEYBOARD_2_NAME = "AT Translated Set 2 keyboard";
 
 		LID_SWITCH = "PNP0C0D/button/input0";
 
@@ -1455,7 +1455,10 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		GAMEPAD_NAME = "Microsoft X-Box 360 pad";
 		KEYBOARD_ADDRESS = "usb-0000:63:00.3-3/input1";
 		KEYBOARD_NAME = "  Mouse for Windows";
-
+//		KEYBOARD_2_ADDRESS = "isa0060/serio0/input0";	// for test built-in keyboard
+//		KEYBOARD_2_NAME = "AT Translated Set 2 keyboard";
+//		KEYBOARD_2_ADDRESS = "LNXVIDEO/video/input0"; // for brightness
+//		KEYBOARD_2_NAME = "Video Bus";
 		LID_SWITCH = "PNP0C0D/button/input0";
 
 		const char* GAMEPAD_ADDRESS_LIST[] =
@@ -2000,7 +2003,8 @@ static int g_debug = 0;
 
 static void process_key(evdev* pDev, input_event& seed_event)
 {
-	if (seed_event.code == KEY_VOLUMEDOWN || seed_event.code == KEY_VOLUMEUP || seed_event.code == 4 || seed_event.code == 0)
+	if (seed_event.code == KEY_VOLUMEDOWN || seed_event.code == KEY_VOLUMEUP || seed_event.code == KEY_MUTE || 
+		seed_event.code == KEY_BRIGHTNESSUP || seed_event.code == KEY_BRIGHTNESSDOWN || seed_event.code == 4 || seed_event.code == 0)
 	{
 		if (g_ui_device)
 		{
