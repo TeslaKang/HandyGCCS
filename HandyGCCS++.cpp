@@ -1471,14 +1471,18 @@ static bool id_system(std::string model, std::string board, std::list<deviceItem
 		{
 			"usb-0000:63:00.3-3/input1",	// 7840U	
 			"usb-0000:c3:00.3-3/input1",	// 8840U
-			"usb-0000:c6:00.0-3.2/input0",	// HX370
+			"usb-0000:c6:00.0-3.3/input0",	// HX370
 		};
 		for (auto device : devices)
 		{
 			for (int i = 0; i < _countof(GAMEPAD_ADDRESS_LIST); i++)
 			{
 				if (device.phys == GAMEPAD_ADDRESS_LIST[i]) GAMEPAD_ADDRESS = device.phys;
-				if (device.phys == KEYBOARD_ADDRESS_LIST[i]) KEYBOARD_ADDRESS = device.phys;
+				if (device.phys == KEYBOARD_ADDRESS_LIST[i]) 
+				{
+					KEYBOARD_ADDRESS = device.phys;
+					if (i == 2) KEYBOARD_NAME = "  Keyboard for Windows";
+				}
 			}
 		}
 
