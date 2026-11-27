@@ -3,3 +3,4 @@
 sudo cp -r usr/ /
 sudo systemd-hwdb update
 sudo udevadm control -R
+sudo systemctl daemon-reload

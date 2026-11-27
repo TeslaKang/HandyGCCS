@@ -1,6 +1,9 @@
 [Unit]
 Description=Handheld Game Console Controller Service
-After=graphical-session.target
+# Start before the display manager so the controller/keyboard devices are
+# grabbed and hidden before gamescope (libinput) opens them.
+After=systemd-udev-trigger.service
+Before=display-manager.service
 StartLimitIntervalSec=500
 StartLimitBurst=5
 
