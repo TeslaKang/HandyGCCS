@@ -183,33 +183,6 @@ static bool steam_ifrunning_deckui(std::string cmd)
 	return false;
 }
 
-// Steam UI가 떠 있는지 /proc 를 직접 검사 (USER 판별 결과와 무관)
-static bool is_steam_ui_running()
-{
-	DIR* dir = opendir("/proc");
-	bool found = false;
-
-	if (dir)
-	{
-		while (dirent* ent = readdir(dir))
-		{
-			if (ent->d_name[0] < '1' || ent->d_name[0] > '9') continue;
-
-			char path[300] = { 0, };
-			char comm[32] = { 0, };
-
-			snprintf(path, sizeof(path), "/proc/%s/comm", ent->d_name);
-			if (readFileContent(path, comm, sizeof(comm) - 1) && strcmp(comm, "steamwebhelper") == 0)
-			{
-				found = true;
-				break;
-			}
-		}
-		closedir(dir);
-	}
-	return found;
-}
-
 static const char* CHIMERA_LAUNCHER_PATH ="/usr/share/chimera/bin/chimera-web-launcher";
 static bool launch_chimera()
 {
@@ -425,6 +398,7 @@ static evdev* grabDevice(std::string name, std::string phys, bool hidden = false
 						continue;
 					}
 					int rr = libevdev_grab(dev, LIBEVDEV_GRAB);
+					if (rr < 0) fprintf(stderr, "Failed to grab %s (%s): %s\n", device.path.c_str(), name.c_str(), strerror(-rr));
 					if (hidden)
 					{
 						std::string dst_path = HIDE_PATH + device.event;
@@ -2461,15 +2435,6 @@ int main(int argc, char* argv[])
 	get_config();
 
 	int ret = 0;
-	// Steam 보다 먼저 만들어진 가상 컨트롤러는 Steam 이 Guide(BTN_MODE)를 처리하지 않는다.
-	// (서비스 stop/start 시에는 Steam 실행 중에 새로 생성되므로 정상 동작)
-	// → Steam UI 시작을 감지하면 가상 컨트롤러를 재생성한다.
-	const int STEAM_SETTLE_MS = 5000;
-	bool steamSeen = is_steam_ui_running();
-	bool recreateUinput = false;
-	int steamCheckTick = 0;
-	int steamFoundTick = 0;
-
 	g_ui_device = new uinput();
 	if (g_ui_device->Create())
 	{
@@ -2521,30 +2486,6 @@ int main(int argc, char* argv[])
 				int prev_event = -1;
 				while (g_runningLoop == 1)
 				{
-					int now = getTickCount();
-					if (now - steamCheckTick >= 1000)
-					{
-						steamCheckTick = now;
-						if (!is_steam_ui_running())
-						{
-							steamSeen = false;
-							steamFoundTick = 0;
-						}
-						else if (!steamSeen)
-						{
-							if (steamFoundTick == 0) steamFoundTick = now;
-							else if (now - steamFoundTick >= STEAM_SETTLE_MS)
-							{
-								steamSeen = true;
-								steamFoundTick = 0;
-								recreateUinput = true;
-								fprintf(g_logStream, "Steam started. Recreating virtual controller.\n");
-								request_restart();
-								break;
-							}
-						}
-					}
-
 					std::unique_lock<std::mutex> lock(g_event_mutex);
 
 					if (g_event_list.empty()) g_event_cond.wait_for(lock, std::chrono::milliseconds(300));
@@ -2573,23 +2514,9 @@ int main(int argc, char* argv[])
 					SAFE_DELETE(thread);
 				}
 				threads.clear();
-				if (prev_event >= 0) handle_key_up(prev_event);
 				if (const char* action = g_pPowerAction.exchange(NULL))
 				{
 					do_handle_power_action(action);
-				}
-				if (recreateUinput)
-				{
-					// 모든 스레드가 join 된 뒤라 g_ui_device 를 안전하게 교체할 수 있다.
-					recreateUinput = false;
-					SAFE_DELETE(g_ui_device);
-					g_ui_device = new uinput();
-					if (!g_ui_device->Create())
-					{
-						fprintf(g_logStream, "cannot recreate uinput\n");
-						ret = -1;
-						break;
-					}
 				}
 			}
 			else
