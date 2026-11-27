@@ -151,13 +151,10 @@ static std::string HIDE_PATH = EVENT_PATH + ".hidden/";
 static std::string HOME_PATH = "/home";
 static std::string USER = "";
 
-static void get_user();
-
 static bool steam_ifrunning_deckui(std::string cmd)
 {
 	char str[500] = { 0, };
 
-	get_user();
 	if (readFileContent((HOME_PATH + "/.steam/steam.pid").c_str(), str, 400) >= 0)
 	{
 		int pid = atoi(str);
@@ -191,7 +188,6 @@ static bool launch_chimera()
 {
 	if (fileExists(CHIMERA_LAUNCHER_PATH))
 	{
-		get_user();
 		std::string run = "su " + USER + " -c " + CHIMERA_LAUNCHER_PATH;
 
 		return system(run.c_str()) >= 0;
@@ -199,26 +195,29 @@ static bool launch_chimera()
 	return false;
 }
 
-// Resolve the logged-in user lazily (only when actually needed).
-// Must never block at startup: delaying the device grab lets gamescope open
-// the GPD keyboard first, which breaks the Guide/QAM buttons after boot.
 static void get_user()
 {
-	static bool resolved = false;
-	if (resolved) return;
+	int count = 0;
 
-	std::string user = readExeResult("who | awk '{print $1}' | sort | head -1");
-	trim(user);
-	if (!user.empty())
+	while (1)
 	{
-		USER = user;
-		resolved = true;
+		std::string user = readExeResult("who | awk '{print $1}' | sort | head -1");
+
+		if (!user.empty())
+		{
+			trim(user);
+			USER = user;
+			break;
+		}
+		sleep(1);
+        count++;
+        if (count > 3)
+		{
+            USER = "deck";
+			break;
+		}
 	}
-	else
-	{
-		USER = "deck";	// fallback, retry next time
-	}
-	HOME_PATH = "/home/" + USER;
+	HOME_PATH = "/home/" + USER;	
 }
 
 static void restore_hidden()
@@ -2252,7 +2251,6 @@ static void capture_ff_events()
 static void capture_keyboard_events()
 {
 	evdev* keyboard_device = NULL;
-	int tryCnt = 0;
 
 	while (g_runningLoop == 1)
 	{
@@ -2272,15 +2270,6 @@ static void capture_keyboard_events()
 			{
 				fprintf(g_logStream, "Attempting to grab keyboard device... '%s' '%s'\n", KEYBOARD_NAME.c_str(), KEYBOARD_ADDRESS.c_str());
 				keyboard_device = grabDevice(KEYBOARD_NAME, KEYBOARD_ADDRESS, true);
-				// Device may not be enumerated yet at early boot (id_system picked
-				// a fallback address). Re-detect devices after a few failures.
-				if (!keyboard_device) tryCnt++;
-				else tryCnt = 0;
-				if (tryCnt >= 3)
-				{
-					request_restart();
-					tryCnt = 0;
-				}
 			}
 			if (!keyboard_device) sleepMS(DETECT_DELAY);
 		}
@@ -2436,6 +2425,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	get_user();
+
 	mkdir(HIDE_PATH.c_str(), 0777);
 	restore_hidden();
 
@@ -2523,7 +2514,6 @@ int main(int argc, char* argv[])
 					SAFE_DELETE(thread);
 				}
 				threads.clear();
-				if (prev_event >= 0) handle_key_up(prev_event);
 				if (const char* action = g_pPowerAction.exchange(NULL))
 				{
 					do_handle_power_action(action);

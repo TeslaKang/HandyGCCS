@@ -1,10 +1,5 @@
 # Adds uaccess to Handheld Controller and makes it act like a joystick.
 ACTION=="add|change", KERNEL=="event[0-9]*", SUBSYSTEM=="input", ATTRS{name}=="Handheld Controller", MODE="0660", TAG+="uaccess", ENV{ID_INPUT_JOYSTICK}="1"
 
-# GPD Win Mini: the button keyboard (QAM / back buttons) is read only by handycon.
-# Keep libinput (gamescope, KDE) from opening it; otherwise gamescope can open it
-# at boot before handycon hides/grabs it, and Steam's Guide/QAM stop working.
-ACTION=="add|change", KERNEL=="event[0-9]*", SUBSYSTEM=="input", ATTR{[dmi/id]product_name}=="G1617-01|G1617-02", ATTRS{phys}=="usb-0000:63:00.3-3/input1|usb-0000:c3:00.3-3/input1|usb-0000:c6:00.0-3.3/input0", ENV{LIBINPUT_IGNORE_DEVICE}="1"
-
 # Adds necessary keycodes to GPD devices for the back buttons.
 ACTION=="add|change", KERNEL=="event[0-9]*", ATTRS{idVendor}=="2f24", ATTRS{idProduct}=="0135", ENV{ID_INPUT_KEYBOARD}="1"
