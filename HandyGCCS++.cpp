@@ -647,6 +647,30 @@ struct uinput
 		}
 		return false;
 	}
+	// "/dev/input/eventN" of this virtual device (empty if unknown)
+	std::string GetEventPath()
+	{
+		char sysname[64] = { 0, };
+
+		if (fd < 0 || ioctl(fd, UI_GET_SYSNAME(sizeof(sysname)), sysname) < 0) return "";
+
+		std::string result;
+		std::string dirPath = std::string("/sys/devices/virtual/input/") + sysname;
+		DIR* dir = opendir(dirPath.c_str());
+		if (dir)
+		{
+			while (dirent* ent = readdir(dir))
+			{
+				if (strncmp(ent->d_name, "event", 5) == 0)
+				{
+					result = std::string("/dev/input/") + ent->d_name;
+					break;
+				}
+			}
+			closedir(dir);
+		}
+		return result;
+	}
 	int Read(input_event* pEvent)
 	{
 		if (fd >= 0)
@@ -1778,6 +1802,49 @@ static void reset_mouse_mode(int flag)
 static std::mutex g_mouseMutex;
 static std::condition_variable g_mouseCond;
 
+// Returns pid of a Steam process that has devPath open, 0 if none.
+static int find_steam_holding(const std::string& devPath)
+{
+	int found = 0;
+
+	if (devPath.empty()) return 0;
+
+	DIR* dir = opendir("/proc");
+	if (!dir) return 0;
+	while (dirent* ent = readdir(dir))
+	{
+		if (ent->d_name[0] < '1' || ent->d_name[0] > '9') continue;
+
+		char path[300] = { 0, };
+		char comm[64] = { 0, };
+
+		snprintf(path, sizeof(path), "/proc/%s/comm", ent->d_name);
+		if (readFileContent(path, comm, sizeof(comm) - 1) < 0) continue;
+		if (strncmp(comm, "steam", 5) != 0) continue;
+
+		snprintf(path, sizeof(path), "/proc/%s/fd", ent->d_name);
+		DIR* fdDir = opendir(path);
+		if (!fdDir) continue;
+		while (dirent* fdEnt = readdir(fdDir))
+		{
+			char link[300] = { 0, };
+			char target[300] = { 0, };
+
+			snprintf(link, sizeof(link), "/proc/%s/fd/%s", ent->d_name, fdEnt->d_name);
+			ssize_t len = readlink(link, target, sizeof(target) - 1);
+			if (len > 0 && devPath == target)
+			{
+				found = atoi(ent->d_name);
+				break;
+			}
+		}
+		closedir(fdDir);
+		if (found) break;
+	}
+	closedir(dir);
+	return found;
+}
+
 static int getTickCount()
 {
 	static timespec old;
@@ -2443,10 +2510,23 @@ int main(int argc, char* argv[])
 	set_default_config();
 	get_config();
 
+	// Steam (gamepadui) cold start after boot sometimes initializes the controller
+	// before its Guide-chord config is ready: Guide/QAM events arrive but are ignored
+	// until the controller reconnects. So once Steam has held our virtual device
+	// for a while (startup finished), reconnect it a single time.
+	const int STEAM_SETTLE_MS = 20000;
+	bool steamReconnected = false;
+	bool recreateUinput = false;
+	int steamHoldTick = 0;
+	int steamCheckTick = 0;
+
 	int ret = 0;
 	g_ui_device = new uinput();
 	if (g_ui_device->Create())
 	{
+		std::string uiEventPath = g_ui_device->GetEventPath();
+		fprintf(g_logStream, "Virtual controller: %s\n", uiEventPath.c_str());
+
 		while (g_runningLoop)
 		{
 			int expected = 2;
@@ -2495,6 +2575,30 @@ int main(int argc, char* argv[])
 				int prev_event = -1;
 				while (g_runningLoop == 1)
 				{
+					if (!steamReconnected)
+					{
+						int now = getTickCount();
+						if (now - steamCheckTick >= 2000)
+						{
+							steamCheckTick = now;
+							int pid = find_steam_holding(uiEventPath);
+							if (!pid) steamHoldTick = 0;
+							else if (steamHoldTick == 0)
+							{
+								steamHoldTick = now;
+								fprintf(g_logStream, "Steam(pid %d) opened virtual controller.\n", pid);
+							}
+							else if (now - steamHoldTick >= STEAM_SETTLE_MS)
+							{
+								steamReconnected = true;
+								recreateUinput = true;
+								fprintf(g_logStream, "Steam settled. Reconnecting virtual controller.\n");
+								request_restart();
+								break;
+							}
+						}
+					}
+
 					std::unique_lock<std::mutex> lock(g_event_mutex);
 
 					if (g_event_list.empty()) g_event_cond.wait_for(lock, std::chrono::milliseconds(300));
@@ -2523,9 +2627,26 @@ int main(int argc, char* argv[])
 					SAFE_DELETE(thread);
 				}
 				threads.clear();
+				if (prev_event >= 0) handle_key_up(prev_event);
 				if (const char* action = g_pPowerAction.exchange(NULL))
 				{
 					do_handle_power_action(action);
+				}
+				if (recreateUinput)
+				{
+					// All threads are joined, so g_ui_device can be replaced safely.
+					recreateUinput = false;
+					SAFE_DELETE(g_ui_device);
+					sleepMS(500);
+					g_ui_device = new uinput();
+					if (!g_ui_device->Create())
+					{
+						fprintf(g_logStream, "cannot recreate uinput\n");
+						ret = -1;
+						break;
+					}
+					uiEventPath = g_ui_device->GetEventPath();
+					fprintf(g_logStream, "Virtual controller: %s\n", uiEventPath.c_str());
 				}
 			}
 			else
