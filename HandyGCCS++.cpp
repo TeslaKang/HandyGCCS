@@ -28,6 +28,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 // https://github.com/spotify/linux/blob/master/include/linux/input.h
 
@@ -103,7 +104,11 @@ static std::string get_cpu_vendor()
 	unsigned int eax = 0;
 	char vendor[16] = { 0, };
 
-	__get_cpuid(level, &eax, (unsigned int*)&vendor[0], (unsigned int*)&vendor[4], (unsigned int*)&vendor[8]);
+	unsigned int ebx = 0, ecx = 0, edx = 0;
+	if (!__get_cpuid(level, &eax, &ebx, &ecx, &edx)) return "";
+	memcpy(vendor, &ebx, sizeof(ebx));
+	memcpy(vendor + 4, &edx, sizeof(edx));
+	memcpy(vendor + 8, &ecx, sizeof(ecx));
 	return vendor;
 }
 
@@ -178,7 +183,34 @@ static bool steam_ifrunning_deckui(std::string cmd)
 	return false;
 }
 
-static const char* CHIMERA_LAUNCHER_PATH = "/usr/share/chimera/bin/chimera-web-launcher";
+// Steam UI가 떠 있는지 /proc 를 직접 검사 (USER 판별 결과와 무관)
+static bool is_steam_ui_running()
+{
+	DIR* dir = opendir("/proc");
+	bool found = false;
+
+	if (dir)
+	{
+		while (dirent* ent = readdir(dir))
+		{
+			if (ent->d_name[0] < '1' || ent->d_name[0] > '9') continue;
+
+			char path[300] = { 0, };
+			char comm[32] = { 0, };
+
+			snprintf(path, sizeof(path), "/proc/%s/comm", ent->d_name);
+			if (readFileContent(path, comm, sizeof(comm) - 1) && strcmp(comm, "steamwebhelper") == 0)
+			{
+				found = true;
+				break;
+			}
+		}
+		closedir(dir);
+	}
+	return found;
+}
+
+static const char* CHIMERA_LAUNCHER_PATH ="/usr/share/chimera/bin/chimera-web-launcher";
 static bool launch_chimera()
 {
 	if (fileExists(CHIMERA_LAUNCHER_PATH))
@@ -242,7 +274,7 @@ static bool getDevices(std::list<deviceItem>& devices)
 		{
 			int fd = open((EVENT_PATH + event).c_str(), O_RDONLY | O_NONBLOCK);
 
-			if (fd > 0)
+			if (fd >= 0)
 			{
 				libevdev* dev = NULL;
 				int rc = libevdev_new_from_fd(fd, &dev);
@@ -255,10 +287,13 @@ static bool getDevices(std::list<deviceItem>& devices)
 				}
 
 				const char* name = libevdev_get_name(dev);
-				if (!name) continue;
-
 				const char* phys = libevdev_get_phys(dev);
-				if (!phys) continue;
+				if (!name || !phys)
+				{
+					libevdev_free(dev);
+					close(fd);
+					continue;
+				}
 
 				deviceItem item;
 				item.path = EVENT_PATH + event;
@@ -323,8 +358,8 @@ struct evdev
 		{
 			int fd = libevdev_get_fd(dev);
 
-			if (fd >= 0) close(fd);
 			libevdev_grab(dev, LIBEVDEV_UNGRAB);
+			if (fd >= 0) close(fd);
 			libevdev_free(dev);
 		}
 	}
@@ -378,7 +413,7 @@ static evdev* grabDevice(std::string name, std::string phys, bool hidden = false
 				int flag = rdwr ? O_RDWR : O_RDONLY;
 				int fd = open(device.path.c_str(), flag | O_NONBLOCK);
 
-				if (fd > 0)
+				if (fd >= 0)
 				{
 					libevdev* dev = NULL;
 					int rc = libevdev_new_from_fd(fd, &dev);
@@ -429,6 +464,7 @@ static void do_rumble(int fd, int button = 0, int interval = 10, int length = 10
 	effect.u.rumble.strong_magnitude = 0x0000;
 	effect.u.rumble.weak_magnitude = 0xffff;
 	int err = ioctl(fd, EVIOCSFF, &effect);
+	if (err < 0) return;
 
 	input_event event = { 0, };
 	event.type = EV_FF;
@@ -817,8 +853,8 @@ static void map_config()
 	map_config("power_button", 0, 1);
 	map_config("lid_switch", 0, 2);
 
-	g_button_map[13] = EVENT_VOLUP;
-	g_button_map[14] = EVENT_VOLDOWN;
+	g_button_map[12] = EVENT_VOLUP;
+	g_button_map[13] = EVENT_VOLDOWN;
 }
 
 static void set_default_config()
@@ -866,12 +902,19 @@ static void do_handle_power_action(const char* pAction)
 	}
 }
 
-static int g_runningLoop = 1;
-static const char* g_pPowerAction = NULL;
+static_assert(ATOMIC_INT_LOCK_FREE == 2, "Signal handler requires lock-free atomic int");
+static std::atomic<int> g_runningLoop{1};
+static std::atomic<const char*> g_pPowerAction{NULL};
+
+static void request_restart()
+{
+	int expected = 1;
+	g_runningLoop.compare_exchange_strong(expected, 2);
+}
 static void handle_power_action(const char* pAction)
 {
 	g_pPowerAction = pAction;
-	if (g_runningLoop) g_runningLoop = 2;
+	request_restart();
 }
 
 static const char* CONFIG_DIR = "/etc/handygccs/";
@@ -1700,51 +1743,56 @@ static int getMatchButton(std::vector<int>& keys)
 }
 
 static int FF_DELAY = 200;
+// Protect the descriptor through each operation, including close/reconnect.
+static std::mutex g_controllerMutex;
 static int g_controller_fd = -1;
+static unsigned long long g_controllerGeneration = 0;
+
+static void controller_rumble(int interval)
+{
+	std::lock_guard<std::mutex> lock(g_controllerMutex);
+	if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, interval, 1000, 0);
+}
 
 static void do_rumble_effect(bool on)
 {
 	if (on)
 	{
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 500, 1000, 0);
+		controller_rumble(500);
 		sleepMS(FF_DELAY);
 	}
 	else
 	{
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		controller_rumble(100);
 		sleepMS(FF_DELAY);
-		if (g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 100, 1000, 0);
+		controller_rumble(100);
 		sleepMS(FF_DELAY);
 	}
 }
 
-static bool g_mouseMode = false;
+static std::atomic<bool> g_mouseMode{false};
 static void toggle_mouse_mode(bool doRumble = true)
 {
-	g_mouseMode = !g_mouseMode;
-	if (doRumble) do_rumble_effect(g_mouseMode);
+	bool previous = g_mouseMode.load();
+	while (!g_mouseMode.compare_exchange_weak(previous, !previous)) {}
+	if (doRumble) do_rumble_effect(!previous);
 }
 
 #define FLAG_KEY_SELECT 	1
 #define FLAG_KEY_START 		2
 
-static int g_setMouseMode = 0;
+static std::atomic<int> g_setMouseMode{0};
 static void set_mouse_mode()
 {
 	g_setMouseMode = FLAG_KEY_SELECT | FLAG_KEY_START;
-	do_rumble_effect(g_setMouseMode);
 }
 
 static void reset_mouse_mode(int flag)
 {
-	if (g_setMouseMode & flag)
-	{
-		g_setMouseMode &= ~flag;
-		if (g_setMouseMode == 0) toggle_mouse_mode(false);
-	}
+	int previous = g_setMouseMode.fetch_and(~flag);
+	if ((previous & flag) && !(previous & ~flag)) toggle_mouse_mode(false);
 }
 
-static std::thread *g_mouseThread = NULL;
 static std::mutex g_mouseMutex;
 static std::condition_variable g_mouseCond;
 
@@ -1765,25 +1813,31 @@ static int getTickCount()
 	return (int)(time / 1000000);
 }
 
-static int g_oldAbsX = 0;
-static int g_oldAbsY = 0;
-static int g_btnSelectTick = 0;
-static int g_btnStartTick = 0;
-static bool g_ltDown = false;
-static bool g_rtDown = false;
+static std::atomic<int> g_oldAbsX{0};
+static std::atomic<int> g_oldAbsY{0};
+static std::atomic<int> g_btnSelectTick{0};
+static std::atomic<int> g_btnStartTick{0};
+static std::atomic<bool> g_ltDown{false};
+static std::atomic<bool> g_rtDown{false};
 static void sendMouseEvent()
 {
 	int tickAbsX = 0;
 	int tickAbsY = 0;
 
-	while (g_mouseThread && g_runningLoop)
+	while (g_runningLoop == 1)
 	{
-		if (g_btnSelectTick && g_btnStartTick && getTickCount() - g_btnSelectTick > 2000 && getTickCount() - g_btnStartTick > 2000)
+		bool modeArmed = false;
 		{
-			g_btnSelectTick = 0;
-			g_btnStartTick = 0;
-			set_mouse_mode();
+			std::lock_guard<std::mutex> lock(g_mouseMutex);
+			if (g_btnSelectTick && g_btnStartTick && getTickCount() - g_btnSelectTick > 2000 && getTickCount() - g_btnStartTick > 2000)
+			{
+				g_btnSelectTick = 0;
+				g_btnStartTick = 0;
+				set_mouse_mode();
+				modeArmed = true;
+			}
 		}
+		if (modeArmed) do_rumble_effect(true);
 		{
 			std::unique_lock<std::mutex> lock(g_mouseMutex);
 
@@ -1846,13 +1900,10 @@ static void do_mouse_mode(input_event stickEvent)
 {
 	if (EV_ABS == stickEvent.type)
 	{
-		if (!g_mouseThread) g_mouseThread = new std::thread(sendMouseEvent);
-		{
-			if (ABS_RX == stickEvent.code) g_oldAbsX = stickEvent.value;
-			else if (ABS_RY == stickEvent.code) g_oldAbsY = stickEvent.value;
-			else if (ABS_RZ == stickEvent.code) g_rtDown = stickEvent.value >= 200; // rt
-			else if (ABS_Z == stickEvent.code) g_ltDown = stickEvent.value >= 200; // lt
-		}
+		if (ABS_RX == stickEvent.code) g_oldAbsX = stickEvent.value;
+		else if (ABS_RY == stickEvent.code) g_oldAbsY = stickEvent.value;
+		else if (ABS_RZ == stickEvent.code) g_rtDown = stickEvent.value >= 200; // rt
+		else if (ABS_Z == stickEvent.code) g_ltDown = stickEvent.value >= 200; // lt
 	}
 	else if (EV_KEY == stickEvent.type)
 	{
@@ -1906,6 +1957,7 @@ static void emit_now(const EventCode* pCode, bool isDown)
 	{
 		if (pCode->cmd) // string cmd
 		{
+			if (!isDown) return;
 			if (pCode->cmd == OpenChimera)
 			{
 				fprintf(g_logStream, "Open Chimera\n.");
@@ -1966,7 +2018,7 @@ static void handle_key_down(int event)
 	auto it = g_button_map.find(event);
 	if (it != g_button_map.end())
 	{
-		if (it->second == EVENT_QAM && g_controller_fd >= 0) do_rumble(g_controller_fd, 0, 150, 1000, 0);
+		if (it->second == EVENT_QAM) controller_rumble(150);
 
 		if (std::find(INSTANT_EVENTS.begin(), INSTANT_EVENTS.end(), it->second) != INSTANT_EVENTS.end())
 		{
@@ -2038,7 +2090,8 @@ static void process_key(evdev* pDev, input_event& seed_event)
 	}
 }
 
-static int readEvent(evdev** ppDev, input_event* pEvent, const char* log)
+static int readEvent(evdev** ppDev, input_event* pEvent, const char* log,
+	std::mutex* deviceMutex = NULL, int* sharedFd = NULL)
 {
 	pollfd pfd = { 0, };
 
@@ -2053,6 +2106,9 @@ static int readEvent(evdev** ppDev, input_event* pEvent, const char* log)
 		{
 			fprintf(g_logStream, "%s", log);
 			sleepMS(DETECT_DELAY);
+			std::unique_lock<std::mutex> lock;
+			if (deviceMutex) lock = std::unique_lock<std::mutex>(*deviceMutex);
+			if (sharedFd) *sharedFd = -1;
 			SAFE_DELETE(*ppDev);
 		}
 		return rc;
@@ -2071,7 +2127,8 @@ static void capture_controller_events()
 		if (controller_device)
 		{
 			input_event event = { 0, };
-			int rc = readEvent(&controller_device, &event, "Error capture_controller_events devices. Restarting.\n");
+			int rc = readEvent(&controller_device, &event, "Error capture_controller_events devices. Restarting.\n",
+				&g_controllerMutex, &g_controller_fd);
 
 			if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
 			{
@@ -2086,6 +2143,7 @@ static void capture_controller_events()
 					}
 					if (EV_KEY == event.type)
 					{
+						std::lock_guard<std::mutex> lock(g_mouseMutex);
 						if (event.code == BTN_SELECT)
 						{
 							if (event.value == 0)
@@ -2111,10 +2169,6 @@ static void capture_controller_events()
 							}
 						}
 					}
-					if (g_btnSelectTick && g_btnStartTick)
-					{
-						if (!g_mouseThread) g_mouseThread = new std::thread(sendMouseEvent);
-					}
 				}
 			}
 		}
@@ -2124,79 +2178,90 @@ static void capture_controller_events()
 			{
 				fprintf(g_logStream, "Attempting to grab controller device...'%s' '%s'\n", GAMEPAD_NAME.c_str(), GAMEPAD_ADDRESS.c_str());
 				controller_device = grabDevice(GAMEPAD_NAME, GAMEPAD_ADDRESS, true, true);
-				g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
-				if (g_controller_fd == -1) tryCnt++;
+				{
+					std::lock_guard<std::mutex> lock(g_controllerMutex);
+					g_controller_fd = controller_device ? libevdev_get_fd(controller_device->dev) : -1;
+					if (controller_device) ++g_controllerGeneration;
+				}
+				if (!controller_device) tryCnt++;
+				else tryCnt = 0;
 				if (tryCnt >= 3)
 				{
-					if (g_runningLoop) g_runningLoop = 2;
+					request_restart();
 					tryCnt = 0;
 				}
 			}
 			if (!controller_device) sleepMS(DETECT_DELAY);
 		}
 	}
+	std::lock_guard<std::mutex> lock(g_controllerMutex);
+	g_controller_fd = -1;
 	SAFE_DELETE(controller_device);
 }
 
 static void capture_ff_events()
 {
-	std::map<int, bool> ff_effect_id_set;
-	int controller_fd = g_controller_fd;
+	// Virtual uinput IDs and physical device IDs are separate namespaces.
+	std::map<int, int> effect_ids;
+	unsigned long long generation = 0;
 
 	while (g_runningLoop == 1)
 	{
-		if (g_ui_device)
+		input_event event = { 0, };
+		if (!g_ui_device || g_ui_device->Read(&event) != sizeof(event)) continue;
+
+		std::lock_guard<std::mutex> lock(g_controllerMutex);
+		if (generation != g_controllerGeneration)
 		{
-			input_event event = { 0, };
-			int rc = g_ui_device->Read(&event);
-
-			if (rc == sizeof(event))
+			generation = g_controllerGeneration;
+			effect_ids.clear();
+		}
+		int controller_fd = g_controller_fd;
+		int fd = g_ui_device->fd;
+		if (event.type == EV_FF)
+		{
+			if (event.code == FF_GAIN || event.code == FF_AUTOCENTER)
+				emit_event(controller_fd, event);
+			else
 			{
-				if (controller_fd != g_controller_fd)
-				{
-					controller_fd = g_controller_fd;
-					ff_effect_id_set.clear();
-				}
-				if (event.type == EV_FF)
-				{
-					emit_event(controller_fd, event.type, event.code, event.value);
-				}
-				else if (event.type == EV_UINPUT)
-				{
-					int fd = g_ui_device->fd;
-
-					if (event.code == UI_FF_UPLOAD)
-					{
-						uinput_ff_upload upload = { 0, };
-
-						upload.request_id = event.value;
-						int err = ioctl(fd, UI_BEGIN_FF_UPLOAD, &upload);
-						auto effect = upload.effect;
-
-						if (ff_effect_id_set.find(effect.id) == ff_effect_id_set.end()) effect.id = -1; // set to -1 for kernel to allocate a new id. all other values throw an error for invalid input
-						if (controller_fd >= 0) err = ioctl(controller_fd, EVIOCSFF, &effect);
-						ff_effect_id_set[effect.id] = true;
-						upload.retval = 0;
-
-						err = ioctl(fd, UI_END_FF_UPLOAD, &upload);
-					}
-					else if (event.code == UI_FF_ERASE)
-					{
-						uinput_ff_erase erase = { 0, };
-
-						erase.request_id = event.value;
-						int err = ioctl(fd, UI_BEGIN_FF_ERASE, &erase);
-
-						if (controller_fd >= 0) err = ioctl(controller_fd, EVIOCRMFF, erase.effect_id);
-						erase.retval = 0;
-
-						auto it = ff_effect_id_set.find(erase.effect_id);
-						if (it != ff_effect_id_set.end()) ff_effect_id_set.erase(it);
-
-						err = ioctl(fd, UI_END_FF_ERASE, &erase);
-					}
-				}
+				auto it = effect_ids.find(event.code);
+				if (it != effect_ids.end())
+					emit_event(controller_fd, event.type, it->second, event.value);
 			}
+		}
+		else if (event.type == EV_UINPUT && event.code == UI_FF_UPLOAD)
+		{
+			uinput_ff_upload upload = { 0, };
+			upload.request_id = event.value;
+			if (ioctl(fd, UI_BEGIN_FF_UPLOAD, &upload) < 0) continue;
+			auto effect = upload.effect;
+			const int virtual_id = effect.id;
+			auto it = effect_ids.find(virtual_id);
+			effect.id = it == effect_ids.end() ? -1 : it->second;
+			if (controller_fd < 0) upload.retval = -ENODEV;
+			else if (ioctl(controller_fd, EVIOCSFF, &effect) < 0) upload.retval = -errno;
+			else
+			{
+				effect_ids[virtual_id] = effect.id;
+				upload.retval = 0;
+			}
+			ioctl(fd, UI_END_FF_UPLOAD, &upload);
+		}
+		else if (event.type == EV_UINPUT && event.code == UI_FF_ERASE)
+		{
+			uinput_ff_erase erase = { 0, };
+			erase.request_id = event.value;
+			if (ioctl(fd, UI_BEGIN_FF_ERASE, &erase) < 0) continue;
+			auto it = effect_ids.find(erase.effect_id);
+			if (controller_fd < 0) erase.retval = -ENODEV;
+			else if (it == effect_ids.end()) erase.retval = -EINVAL;
+			else if (ioctl(controller_fd, EVIOCRMFF, it->second) < 0) erase.retval = -errno;
+			else
+			{
+				effect_ids.erase(it);
+				erase.retval = 0;
+			}
+			ioctl(fd, UI_END_FF_ERASE, &erase);
 		}
 	}
 }
@@ -2388,12 +2453,23 @@ int main(int argc, char* argv[])
 	get_config();
 
 	int ret = 0;
+	// Steam 보다 먼저 만들어진 가상 컨트롤러는 Steam 이 Guide(BTN_MODE)를 처리하지 않는다.
+	// (서비스 stop/start 시에는 Steam 실행 중에 새로 생성되므로 정상 동작)
+	// → Steam UI 시작을 감지하면 가상 컨트롤러를 재생성한다.
+	const int STEAM_SETTLE_MS = 5000;
+	bool steamSeen = is_steam_ui_running();
+	bool recreateUinput = false;
+	int steamCheckTick = 0;
+	int steamFoundTick = 0;
+
 	g_ui_device = new uinput();
 	if (g_ui_device->Create())
 	{
 		while (g_runningLoop)
 		{
-			g_runningLoop = 1;
+			int expected = 2;
+			g_runningLoop.compare_exchange_strong(expected, 1);
+			if (g_runningLoop == 0) break;
 
 			fprintf(g_logStream, "Check device and start!!\n");
 			restore_hidden();
@@ -2410,11 +2486,19 @@ int main(int argc, char* argv[])
 					break;
 				}
 
+				g_oldAbsX = 0;
+				g_oldAbsY = 0;
+				g_btnSelectTick = 0;
+				g_btnStartTick = 0;
+				g_setMouseMode = 0;
+				g_ltDown = false;
+				g_rtDown = false;
 				std::list<std::thread*> threads;
 				if (CAPTURE_CONTROLLER && !GAMEPAD_ADDRESS.empty() && !GAMEPAD_NAME.empty())
 				{
 					threads.push_back(new std::thread(capture_controller_events));
 					threads.push_back(new std::thread(capture_ff_events));
+					threads.push_back(new std::thread(sendMouseEvent));
 				}
 				if (CAPTURE_KEYBOARD)
 				{
@@ -2429,6 +2513,30 @@ int main(int argc, char* argv[])
 				int prev_event = -1;
 				while (g_runningLoop == 1)
 				{
+					int now = getTickCount();
+					if (now - steamCheckTick >= 1000)
+					{
+						steamCheckTick = now;
+						if (!is_steam_ui_running())
+						{
+							steamSeen = false;
+							steamFoundTick = 0;
+						}
+						else if (!steamSeen)
+						{
+							if (steamFoundTick == 0) steamFoundTick = now;
+							else if (now - steamFoundTick >= STEAM_SETTLE_MS)
+							{
+								steamSeen = true;
+								steamFoundTick = 0;
+								recreateUinput = true;
+								fprintf(g_logStream, "Steam started. Recreating virtual controller.\n");
+								request_restart();
+								break;
+							}
+						}
+					}
+
 					std::unique_lock<std::mutex> lock(g_event_mutex);
 
 					if (g_event_list.empty()) g_event_cond.wait_for(lock, std::chrono::milliseconds(300));
@@ -2457,10 +2565,23 @@ int main(int argc, char* argv[])
 					SAFE_DELETE(thread);
 				}
 				threads.clear();
-				if (g_pPowerAction)
+				if (prev_event >= 0) handle_key_up(prev_event);
+				if (const char* action = g_pPowerAction.exchange(NULL))
 				{
-					do_handle_power_action(g_pPowerAction);
-					g_pPowerAction = NULL;
+					do_handle_power_action(action);
+				}
+				if (recreateUinput)
+				{
+					// 모든 스레드가 join 된 뒤라 g_ui_device 를 안전하게 교체할 수 있다.
+					recreateUinput = false;
+					SAFE_DELETE(g_ui_device);
+					g_ui_device = new uinput();
+					if (!g_ui_device->Create())
+					{
+						fprintf(g_logStream, "cannot recreate uinput\n");
+						ret = -1;
+						break;
+					}
 				}
 			}
 			else
@@ -2471,14 +2592,6 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		if (g_mouseThread)
-		{
-			auto old = g_mouseThread;
-
-			g_mouseThread = NULL;
-			old->join();
-			SAFE_DELETE(old);
-		}
 	}
 	else
 	{
